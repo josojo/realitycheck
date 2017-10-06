@@ -1,5 +1,4 @@
 resources/venv/rc
-docs/html
 
 # Logs
 logs
@@ -11,12 +10,3 @@ shippable
 
 # Dependency directory
 node_modules
-
-# Generated files
-config/development/contracts.json
-config/development/*.sol.js
-config/test/contracts.json
-build
-dist
-/assets/js/bundle.js
-/assets/css/main.css

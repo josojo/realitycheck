@@ -1,0 +1,340 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Using the Reality Check dapp &mdash; Reality Check  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Reality Check  documentation" href="index.html"/>
+        <link rel="next" title="Using Reality Check from a contract" href="contracts.html"/>
+        <link rel="prev" title="Reality Check" href="index.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Reality Check
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Using the Reality Check dapp</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#asking-a-question">Asking a question</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#reward">Reward</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#question-type">Question Type</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#arbitrator">Arbitrator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#timeout">Timeout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#category">Category</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#answering-a-question">Answering a question</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#your-answer">Your answer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#your-bond">Your bond</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#correcting-an-incorrect-answer">Correcting an incorrect answer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#requesting-arbitration">Requesting arbitration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#withdrawing-funds">Withdrawing funds</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contracts.html">Using Reality Check from a contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a></li>
+<li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design.html">The design in detail</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Reality Check</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Using the Reality Check dapp</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/dapp.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="using-the-reality-check-dapp">
+<h1>Using the Reality Check dapp<a class="headerlink" href="#using-the-reality-check-dapp" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>You will need the <a class="reference external" href="http://metamask.io/">Metamask</a> Chrome extension.</p>
+<p>Reality Check is currently deployed to the Rinkeby testnet. Select the Rinkeby testnet, make sure your account is unlocked and refresh the page.</p>
+<p>You will need Rinkeby testnet coins to use the application. You can get these at the <a class="reference external" href="https://faucet.rinkeby.io/">Rinkeby Faucet</a>.</p>
+</div>
+<div class="section" id="asking-a-question">
+<h2>Asking a question<a class="headerlink" href="#asking-a-question" title="Permalink to this headline">¶</a></h2>
+<p>Click the “post a question” button and fill in the form you see. Enter a clear, unambiguous question in English.</p>
+<div class="section" id="reward">
+<h3>Reward<a class="headerlink" href="#reward" title="Permalink to this headline">¶</a></h3>
+<p>Enter the amount you are prepared to pay as an incentive to answer your question. You pay when you post the question, and the money is collected by the person who gave the final accepted answer.</p>
+<p>If you intend to supply the answer yourself, and are hoping it will survive challenges so that you can use the question as evidence to send to a smart contract, you do not need to set a bounty, and can instead post a bond when you supply your answer. That way you will get the money back if your answer is accepted.</p>
+</div>
+<div class="section" id="question-type">
+<h3>Question Type<a class="headerlink" href="#question-type" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Binary (Yes/No): A simple yes or no answer. Note that this has no value for “null” or “undecided”. If you want to be able to report these options, you may prefer a multi-choice question.</li>
+<li>Number (positive): A positive (unsigned) number. By default questions allow up to 13 decimals.</li>
+<li>Number (positive/negative): A positive or negative (signed) number. By default questions allow up to 13 decimals.</li>
+<li>Single-choice: One answer can be selected from a list. The answer form will display this as a select box.</li>
+<li>Multiple-choice: Multiple answers can be selected from a list. The answer form will display this as a group of checkboxes.</li>
+</ul>
+<p>See <a class="reference internal" href="contracts.html"><span class="doc">Using Reality Check from a contract</span></a> for how these values will be reported to contracts.</p>
+</div>
+<div class="section" id="arbitrator">
+<h3>Arbitrator<a class="headerlink" href="#arbitrator" title="Permalink to this headline">¶</a></h3>
+<p>This is the address of a person, organization or DAO that will settle disputes in exchange for a fee. See <a class="reference internal" href="arbitrators.html"><span class="doc">Arbitrators</span></a> for more details on how they work, and how you can create your own arbitrator.</p>
+</div>
+<div class="section" id="timeout">
+<h3>Timeout<a class="headerlink" href="#timeout" title="Permalink to this headline">¶</a></h3>
+<p>How long people will have to correct incorrect reponses after they are posted. We normally suggest 24 hours. You may prefer a longer setting if you think your question will need time to come to the attention of people qualified to answer it, or a shorter setting if you think many people will be paying attention within a short timespan.</p>
+</div>
+<div class="section" id="category">
+<h3>Category<a class="headerlink" href="#category" title="Permalink to this headline">¶</a></h3>
+<p>This is intended to help people find questions of the subject they are interested in.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Posting a question will open a MetaMask window which will prompt you to confirm it.
+You will have to pay a fee to the network, called “gas”.
+If you are not in a hurry, you can usually set a much lower gas price than the default suggested by MetaMask.</p>
+</div>
+</div>
+</div>
+<div class="section" id="answering-a-question">
+<h2>Answering a question<a class="headerlink" href="#answering-a-question" title="Permalink to this headline">¶</a></h2>
+<p>Click on the question to open the display and entry window.</p>
+<div class="section" id="your-answer">
+<h3>Your answer<a class="headerlink" href="#your-answer" title="Permalink to this headline">¶</a></h3>
+<p>Enter the answer.</p>
+</div>
+<div class="section" id="your-bond">
+<h3>Your bond<a class="headerlink" href="#your-bond" title="Permalink to this headline">¶</a></h3>
+<p>This is money that you will get back if your answer is accepted as the final answer, and lose if your answer is not accepted.</p>
+<p>Posting a bond stakes a claim to the answer you are giving: Even if someone else later reposts the same answer, you will get your bond back, and also be paid, as a mimimum, an amount equal to the bond you have posted.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>When you send a transaction to the Ethereum network, it can takes seconds, minutes or even hours to confirm.</p>
+<p class="last">You can go ahead and supply your own answer to a question before it has confirmed. However, other users will not see either the question or your answer until they are confirmed.</p>
+</div>
+</div>
+</div>
+<div class="section" id="correcting-an-incorrect-answer">
+<h2>Correcting an incorrect answer<a class="headerlink" href="#correcting-an-incorrect-answer" title="Permalink to this headline">¶</a></h2>
+<p>If you see a question with an incorrect answer, you can correct it simply by adding a new answer.</p>
+<p>Correcting an answer will entitle you to the bond of the previous user. However, you must submit your own bond, and it must be at least twice as high as the bond submitted by the previous answerer.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Until your answer has been sent to the network and confirmed in a block, it is possible for someone else to submit a competing answer.
+This will cause your transaction to fail.</p>
+<p class="last">If the competing answer is also wrong, you may wish to resubmit your answer with an even higher bond.</p>
+</div>
+</div>
+<div class="section" id="requesting-arbitration">
+<h2>Requesting arbitration<a class="headerlink" href="#requesting-arbitration" title="Permalink to this headline">¶</a></h2>
+<p>If you see a question with an incorrect answer and a high bond, you can request arbitration.</p>
+<p>To request arbitration you must pay the arbitrator a fee. The fee may be quite high, and it will not be returned to you even if you are right. However, you will receive the bond posted with the incorrect answer. To make it profitable to request arbitration, you can increase your bond to the point where the person posting the incorrect answer will either give up, making your answer the winner, or post a bond that exceeds the amount you will have to pay the arbitrator.</p>
+<p>Once the arbitration fee has been paid the question will be locked, and the participants have to wait for the arbitrator to send their final answer to the contract.</p>
+<p>See <a class="reference internal" href="arbitrators.html"><span class="doc">Arbitrators</span></a> for more details on how the arbitration process works.</p>
+</div>
+<div class="section" id="withdrawing-funds">
+<h2>Withdrawing funds<a class="headerlink" href="#withdrawing-funds" title="Permalink to this headline">¶</a></h2>
+<p>Once a question has been finalized, anyone who submitted the correct answer will be able to withdraw funds.</p>
+<p>Once funds are available, a “Claim” button will show up on the “your” tab that appears when you click the user icon in the top-right corner. Clicking the “Claim” button will send the funds to your account.</p>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="contracts.html" class="btn btn-neutral float-right" title="Using Reality Check from a contract" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Reality Check" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, KK Social Minds.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

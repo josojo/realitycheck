@@ -1,0 +1,34 @@
+{
+  "contract_name": "CallerBackerAPI",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "name": "client_ctrct",
+          "type": "address"
+        },
+        {
+          "name": "gas",
+          "type": "uint256"
+        },
+        {
+          "name": "min_bounty",
+          "type": "uint256"
+        }
+      ],
+      "name": "sendCallback",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    }
+  ],
+  "unlinked_binary": "0x",
+  "networks": {},
+  "schema_version": "0.0.5",
+  "updated_at": 1507162526571
+}

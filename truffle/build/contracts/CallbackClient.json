@@ -1,0 +1,66 @@
+{
+  "contract_name": "CallbackClient",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "answers",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "name": "question_answer",
+          "type": "bytes32"
+        }
+      ],
+      "name": "__factcheck_callback",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "question_answer",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "LogCallback",
+      "type": "event"
+    }
+  ],
+  "unlinked_binary": "0x6060604052341561000f57600080fd5b5b6101408061001f6000396000f300606060405263ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663aac753b68114610048578063bc8a369714610070575b600080fd5b341561005357600080fd5b61005e60043561008b565b60405190815260200160405180910390f35b341561007b57600080fd5b61008960043560243561009d565b005b60006020819052908152604090205481565b600082815260208190526040908190208290557f0c3ddecd829066bed247527f262273acaf114be545e42b5b1683335dbeb25a919083908390339051928352602083019190915273ffffffffffffffffffffffffffffffffffffffff166040808301919091526060909101905180910390a15b50505600a165627a7a723058207c887ba7422124037f655fa2eb70e0fc9558faafca9f28e7644d01e31ebc57b10029",
+  "networks": {},
+  "schema_version": "0.0.5",
+  "updated_at": 1506732542609
+}

@@ -1,0 +1,206 @@
+{
+  "contract_name": "Arbitrator",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "realitycheck",
+          "type": "address"
+        },
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "requestArbitration",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": true,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "realitycheck",
+          "type": "address"
+        },
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "name": "client_ctrct",
+          "type": "address"
+        },
+        {
+          "name": "gas",
+          "type": "uint256"
+        },
+        {
+          "name": "min_bounty",
+          "type": "uint256"
+        }
+      ],
+      "name": "sendCallback",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "arbitration_bounties",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "realitycheck",
+          "type": "address"
+        },
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "name": "answer",
+          "type": "bytes32"
+        },
+        {
+          "name": "answerer",
+          "type": "address"
+        }
+      ],
+      "name": "submitAnswerByArbitrator",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getFee",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "payable": false,
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "fee_paid",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "requester",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "remaining",
+          "type": "uint256"
+        }
+      ],
+      "name": "LogRequestArbitration",
+      "type": "event"
+    }
+  ],
+  "unlinked_binary": "0x6060604052341561000f57600080fd5b5b60008054600160a060020a03191633600160a060020a03161790555b5b6105378061003c6000396000f3006060604052361561005c5763ffffffff60e060020a6000350416632609037c811461006157806351cff8d91461008c578063605ede20146100ad578063a20dd43b146100de578063dce4b34e14610106578063e5f3d3a514610145575b600080fd5b610078600160a060020a036004351660243561016d565b604051901515815260200160405180910390f35b341561009757600080fd5b6100ab600160a060020a0360043516610336565b005b34156100b857600080fd5b6100ab600160a060020a036004358116906024359060443516606435608435610393565b005b34156100e957600080fd5b6100f460043561042e565b60405190815260200160405180910390f35b341561011157600080fd5b6100f4600160a060020a03600435811690602435906044359060643516610440565b60405190815260200160405180910390f35b341561015057600080fd5b6100f46004356104fd565b60405190815260200160405180910390f35b600080600061017b846104fd565b6000858152600160205260409020805434019081905590925090508181106102625784600160a060020a0316633e4e0432853360405160e060020a63ffffffff85160281526004810192909252600160a060020a03166024820152604401600060405180830381600087803b15156101f257600080fd5b6102c65a03f1151561020357600080fd5b508591507fdf8a830581aa05b0b824a0c184007c33a1ad9100a41751c9ded9f2b4fefb16ba905034336000604051928352600160a060020a0390911660208301526040808301919091526060909101905180910390a26001925061032d565b84600160a060020a0316637f8d429e8560006040516020015260405160e060020a63ffffffff84160281526004810191909152602401602060405180830381600087803b15156102b157600080fd5b6102c65a03f115156102c257600080fd5b50505060405180511590506102d657600080fd5b837fdf8a830581aa05b0b824a0c184007c33a1ad9100a41751c9ded9f2b4fefb16ba3433848603604051928352600160a060020a0390911660208301526040808301919091526060909101905180910390a2600092505b5b505092915050565b60005433600160a060020a0390811691161461035157600080fd5b80600160a060020a03166108fc30600160a060020a0316319081150290604051600060405180830381858888f19350505050151561038e57600080fd5b5b5b50565b60005433600160a060020a039081169116146103ae57600080fd5b84600160a060020a031663e07422928585858560405160e060020a63ffffffff87160281526004810194909452600160a060020a03909216602484015260448301526064820152608401600060405180830381600087803b151561041157600080fd5b6102c65a03f1151561042257600080fd5b5050505b5b5050505050565b60016020526000908152604090205481565b6000805433600160a060020a0390811691161461045c57600080fd5b600084815260016020526040808220829055600160a060020a0387169163fe92049d9187918791879190516020015260405160e060020a63ffffffff861602815260048101939093526024830191909152600160a060020a03166044820152606401602060405180830381600087803b15156104d757600080fd5b6102c65a03f115156104e857600080fd5b50505060405180519150505b5b949350505050565b662386f26fc100005b9190505600a165627a7a7230582026aef0920fd9cb0ac451cda4a5732e431087df79f4435911291ec0e9dc07c7240029",
+  "networks": {
+    "4": {
+      "events": {
+        "0xdf8a830581aa05b0b824a0c184007c33a1ad9100a41751c9ded9f2b4fefb16ba": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "question_id",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "name": "fee_paid",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "name": "requester",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "name": "remaining",
+              "type": "uint256"
+            }
+          ],
+          "name": "LogRequestArbitration",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x331d13c51324154bd4ecdd149cb0c567e38795c9",
+      "updated_at": 1507162788782
+    }
+  },
+  "schema_version": "0.0.5",
+  "updated_at": 1507162788782
+}

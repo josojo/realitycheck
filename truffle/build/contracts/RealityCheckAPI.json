@@ -2,11 +2,60 @@
   "contract_name": "RealityCheckAPI",
   "abi": [
     {
-      "constant": true,
+      "constant": false,
+      "inputs": [
+        {
+          "name": "question_ids",
+          "type": "bytes32[]"
+        },
+        {
+          "name": "lengths",
+          "type": "uint256[]"
+        },
+        {
+          "name": "hist_hashes",
+          "type": "bytes32[]"
+        },
+        {
+          "name": "addrs",
+          "type": "address[]"
+        },
+        {
+          "name": "bonds",
+          "type": "uint256[]"
+        },
+        {
+          "name": "answers",
+          "type": "bytes32[]"
+        }
+      ],
+      "name": "claimMultipleAndWithdrawBalance",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
       "inputs": [
         {
           "name": "question_id",
           "type": "bytes32"
+        },
+        {
+          "name": "content_hash",
+          "type": "bytes32"
+        },
+        {
+          "name": "arbitrator",
+          "type": "address"
+        },
+        {
+          "name": "min_timeout",
+          "type": "uint256"
+        },
+        {
+          "name": "min_bond",
+          "type": "uint256"
         }
       ],
       "name": "getFinalAnswer",
@@ -18,10 +67,65 @@
       ],
       "payable": false,
       "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
+          "name": "answer",
+          "type": "bytes32"
+        },
+        {
+          "name": "max_previous",
+          "type": "uint256"
+        }
+      ],
+      "name": "submitAnswer",
+      "outputs": [],
+      "payable": true,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "template_id",
+          "type": "uint256"
+        },
+        {
+          "name": "question",
+          "type": "string"
+        },
+        {
+          "name": "arbitrator",
+          "type": "address"
+        },
+        {
+          "name": "timeout",
+          "type": "uint256"
+        },
+        {
+          "name": "nonce",
+          "type": "uint256"
+        }
+      ],
+      "name": "askQuestion",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "payable": true,
+      "type": "function"
     }
   ],
   "unlinked_binary": "0x",
   "networks": {},
   "schema_version": "0.0.5",
-  "updated_at": 1507162526573
+  "updated_at": 1507346266637
 }

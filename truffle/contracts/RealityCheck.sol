@@ -36,17 +36,6 @@ contract RealityCheck is BalanceHolder {
         uint256 nonce
     );
 
-    event LogRepeatQuestion(
-        bytes32 indexed question_id,
-        bytes32 repeat_question_id,
-        address arbitrator, 
-        uint256 timeout,
-        bytes32 indexed content_hash,
-        uint256 created,
-        address indexed user, 
-        uint256 nonce
-    );
-
     event LogNewAnswer(
         bytes32 answer,
         bytes32 indexed question_id,
@@ -124,7 +113,6 @@ contract RealityCheck is BalanceHolder {
     mapping(bytes32 => Question) public questions;
     mapping(bytes32 => Claim) question_claims;
     mapping(bytes32 => Commitment) public commitments;
-    mapping(address => uint256) public balanceOf;
 
     modifier onlyArbitrator(bytes32 question_id) {
         require(msg.sender == questions[question_id].arbitrator);
@@ -216,28 +204,6 @@ contract RealityCheck is BalanceHolder {
 
         _askQuestion(question_id, content_hash, arbitrator, timeout);
         LogNewQuestion(question_id, arbitrator, timeout, template_id, question, content_hash, now, msg.sender, nonce);
-
-        return question_id;
-    }
-
-    function repeatQuestion(bytes32 repeat_question_id, uint256 nonce, address arbitrator, uint256 timeout) 
-    // stateNotCreated is enforced by the internal _askQuestion
-    public payable returns (bytes32) {
-
-        require(questions[repeat_question_id].timeout > 0); // check existence
-
-        bytes32 content_hash = questions[repeat_question_id].content_hash;
-        if (arbitrator == 0x0) {
-            arbitrator = questions[repeat_question_id].arbitrator;
-        }
-        if (timeout == 0) {
-            timeout = questions[repeat_question_id].timeout;
-        }
-
-        bytes32 question_id = keccak256(content_hash, arbitrator, timeout, msg.sender, nonce);
-
-        _askQuestion(question_id, content_hash, arbitrator, timeout);
-        LogRepeatQuestion(question_id, repeat_question_id, arbitrator, timeout, content_hash, now, msg.sender, nonce);
 
         return question_id;
     }
@@ -561,15 +527,6 @@ contract RealityCheck is BalanceHolder {
             claimWinnings(qid, hh, ad, bo, an);
         }
         withdraw();
-    }
-
-    function withdraw() 
-    stateAny() // You can always withdraw your balance
-    public {
-        uint256 bal = balanceOf[msg.sender];
-        balanceOf[msg.sender] = 0;
-        msg.sender.transfer(bal);
-        LogWithdraw(msg.sender, bal);
     }
 
 }

@@ -1,0 +1,277 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Reality Check &mdash; Reality Check  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Reality Check  documentation" href="#"/>
+        <link rel="next" title="Using the Reality Check dapp" href="dapp.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="#" class="icon icon-home"> Reality Check
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dapp.html">Using the Reality Check dapp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contracts.html">Using Reality Check from a contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a></li>
+<li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="whitepaper.html">White paper</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Reality Check</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#">Docs</a> &raquo;</li>
+        
+      <li>Reality Check</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="reality-check">
+<h1>Reality Check<a class="headerlink" href="#reality-check" title="Permalink to this headline">¶</a></h1>
+<p>Reality Check is a crowd-sourced on-chain smart contract oracle system by Reality Keys.</p>
+<p>Reality Check can be used either from our web application or by calling our contracts directly.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dapp.html">Using the Reality Check dapp</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#asking-a-question">Asking a question</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#answering-a-question">Answering a question</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#correcting-an-incorrect-answer">Correcting an incorrect answer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#requesting-arbitration">Requesting arbitration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dapp.html#withdrawing-funds">Withdrawing funds</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contracts.html">Using Reality Check from a contract</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html#fetching-information">Fetching information</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html#asking-questions">Asking questions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html#creating-templates">Creating templates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contracts.html#making-sure-a-question-has-an-answer">Making sure a question has an answer</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="encoding.html#encoding-questions">Encoding questions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="encoding.html#encoding-answers">Encoding answers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="encoding.html#information-unavailability-and-null-responses">Information unavailability and “null” responses</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="arbitrators.html#arbitration-models">Arbitration Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="arbitrators.html#creating-and-using-an-arbitration-contract">Creating and using an arbitration contract</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="whitepaper.html">White paper</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#goals">Goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#basic-process">Basic Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#incentive-problems-and-mitigations">Incentive problems and mitigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#gas-exhaustion-and-bonds-that-are-uneconomical-to-claim">Gas exhaustion and bonds that are uneconomical to claim.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#structuring-and-fetching-information">Structuring and fetching information</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whitepaper.html#arbitration-mechanisms">Arbitration mechanisms</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="dapp.html" class="btn btn-neutral float-right" title="Using the Reality Check dapp" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, KK Social Minds.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -185,7 +185,7 @@
 </pre></div>
 </td></tr></table></div>
 <p>This will return <code class="docutils literal"><span class="pre">bytes32</span></code> data, or throw an error (<code class="docutils literal"><span class="pre">revert</span></code>) if the question does not exist or has not been finalized.</p>
-<p>A (yes/no) question would normally be cast to a <code class="docutils literal"><span class="pre">bool</span></code> type, resulting in <code class="docutils literal"><span class="pre">true</span></code> or <code class="docutils literal"><span class="pre">false</span></code>.</p>
+<p>A (yes/no) question would normally be cast to a <code class="docutils literal"><span class="pre">uint256</span></code> type, resulting in <code class="docutils literal"><span class="pre">1</span></code> or <code class="docutils literal"><span class="pre">0</span></code>.</p>
 <p>If you want numerical data, you will usually cast the result to either <code class="docutils literal"><span class="pre">uint256</span></code> or <code class="docutils literal"><span class="pre">int256</span></code>.</p>
 <p>A single choice from a list of options will return an ID representing a zero-based index.</p>
 <dl class="docutils">

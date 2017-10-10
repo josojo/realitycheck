@@ -168,8 +168,8 @@ contract RealityCheck is BalanceHolder {
 
     function RealityCheck() {
         createTemplate('{"title": "%s", "type": "bool", "category": "%s"}');
-        createTemplate('{"title": "%s", "type": "uint", "decimals": 13, "category": "%s"}');
-        createTemplate('{"title": "%s", "type": "int", "decimals": 13, "category": "%s"}');
+        createTemplate('{"title": "%s", "type": "uint", "decimals": 18, "category": "%s"}');
+        createTemplate('{"title": "%s", "type": "int", "decimals": 18, "category": "%s"}');
         createTemplate('{"title": "%s", "type": "single-select", "outcomes": [%s], "category": "%s"}');
         createTemplate('{"title": "%s", "type": "multiple-select", "outcomes": [%s], "category": "%s"}');
     }
@@ -229,13 +229,6 @@ contract RealityCheck is BalanceHolder {
     external payable {
         questions[question_id].bounty = questions[question_id].bounty.add(msg.value);
         LogFundAnswerBounty(question_id, msg.value, questions[question_id].bounty, msg.sender);
-    }
-
-    // Predict the ID for a given question
-    function getQuestionID(uint256 template_id, string question, address arbitrator, uint256 timeout, address sender, uint256 nonce) 
-    external constant returns (bytes32) {
-        bytes32 content_hash = keccak256(template_id, question);
-        return keccak256(content_hash, arbitrator, timeout, sender, nonce);
     }
 
     function _addAnswerToHistory(bytes32 question_id, bytes32 answer, address answerer, uint256 bond, bool is_commitment) 

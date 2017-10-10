@@ -1594,7 +1594,8 @@ span.rcbrowser__close-button {
   float: right;
   font-size: 13px;
   font-weight: 400;
-  color: #abb2bd; }
+  color: #abb2bd;
+  display: none; }
 
 .rcbrowser-main-header-subtitle > span {
   color: #ffffff; }
@@ -2583,9 +2584,6 @@ div.rcbrowser--qa-detail .answer-claim-button {
 
 .answer-claim-button {
   display: none; }
-
-div.rcbrowser--qa-detail.question-state-finalized.is-claimable .answer-claim-button {
-  display: block !important; }
 
 .answer-debit-info, .answer-credit-info {
   font-size: 13px;

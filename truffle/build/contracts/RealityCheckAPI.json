@@ -42,6 +42,27 @@
           "type": "bytes32"
         },
         {
+          "name": "answer",
+          "type": "bytes32"
+        },
+        {
+          "name": "max_previous",
+          "type": "uint256"
+        }
+      ],
+      "name": "submitAnswer",
+      "outputs": [],
+      "payable": true,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "question_id",
+          "type": "bytes32"
+        },
+        {
           "name": "content_hash",
           "type": "bytes32"
         },
@@ -58,7 +79,7 @@
           "type": "uint256"
         }
       ],
-      "name": "getFinalAnswer",
+      "name": "getFinalAnswerIfMatches",
       "outputs": [
         {
           "name": "",
@@ -66,27 +87,6 @@
         }
       ],
       "payable": false,
-      "type": "function"
-    },
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "question_id",
-          "type": "bytes32"
-        },
-        {
-          "name": "answer",
-          "type": "bytes32"
-        },
-        {
-          "name": "max_previous",
-          "type": "uint256"
-        }
-      ],
-      "name": "submitAnswer",
-      "outputs": [],
-      "payable": true,
       "type": "function"
     },
     {
@@ -127,5 +127,5 @@
   "unlinked_binary": "0x",
   "networks": {},
   "schema_version": "0.0.5",
-  "updated_at": 1507346266637
+  "updated_at": 1507613954504
 }

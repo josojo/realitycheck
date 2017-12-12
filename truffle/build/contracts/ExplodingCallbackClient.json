@@ -1,5 +1,5 @@
 {
-  "contract_name": "ExplodingCallbackClient",
+  "contractName": "ExplodingCallbackClient",
   "abi": [
     {
       "constant": false,
@@ -16,11 +16,176 @@
       "name": "__realitycheck_callback",
       "outputs": [],
       "payable": false,
+      "stateMutability": "nonpayable",
       "type": "function"
     }
   ],
-  "unlinked_binary": "0x60606040523415600e57600080fd5b5b60898061001d6000396000f300606060405263ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631d7dbb438114603c575b600080fd5b3415604657600080fd5b60526004356024356037565b005b600080fd5b50505600a165627a7a72305820994e2b2f77efda76a5055c5649e98a808033b8a9ae4ad429a3afb2ae9a1fedcd0029",
+  "bytecode": "0x60606040523415600e57600080fd5b60878061001c6000396000f300606060405260043610603e5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631d7dbb4381146043575b600080fd5b3415604d57600080fd5b6059600435602435603e565b0000a165627a7a723058206ad4446152702ad77f04a2c2638b14e753096bf37cddb3215cd171c811721fd80029",
+  "deployedBytecode": "0x606060405260043610603e5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631d7dbb4381146043575b600080fd5b3415604d57600080fd5b6059600435602435603e565b0000a165627a7a723058206ad4446152702ad77f04a2c2638b14e753096bf37cddb3215cd171c811721fd80029",
+  "sourceMap": "25:144:4:-;;;;;;;;;;;;;;;;;",
+  "deployedSourceMap": "25:144:4:-;;;;;;;;;;;;;;;;;;;;;;;65:101;;;;;;;;;;;;;;;;;",
+  "source": "pragma solidity ^0.4.6;\n\ncontract ExplodingCallbackClient {\n\n    function __realitycheck_callback(bytes32 question_id, bytes32 question_answer) {\n        throw;\n    }\n\n}\n",
+  "sourcePath": "/var/www/html/live/truffle/contracts/ExplodingCallbackClient.sol",
+  "ast": {
+    "attributes": {
+      "absolutePath": "/var/www/html/live/truffle/contracts/ExplodingCallbackClient.sol",
+      "exportedSymbols": {
+        "ExplodingCallbackClient": [
+          636
+        ]
+      }
+    },
+    "children": [
+      {
+        "attributes": {
+          "literals": [
+            "solidity",
+            "^",
+            "0.4",
+            ".6"
+          ]
+        },
+        "id": 626,
+        "name": "PragmaDirective",
+        "src": "0:23:4"
+      },
+      {
+        "attributes": {
+          "baseContracts": [
+            null
+          ],
+          "contractDependencies": [
+            null
+          ],
+          "contractKind": "contract",
+          "documentation": null,
+          "fullyImplemented": true,
+          "linearizedBaseContracts": [
+            636
+          ],
+          "name": "ExplodingCallbackClient",
+          "scope": 637
+        },
+        "children": [
+          {
+            "attributes": {
+              "constant": false,
+              "implemented": true,
+              "isConstructor": false,
+              "modifiers": [
+                null
+              ],
+              "name": "__realitycheck_callback",
+              "payable": false,
+              "scope": 636,
+              "stateMutability": "nonpayable",
+              "superFunction": null,
+              "visibility": "public"
+            },
+            "children": [
+              {
+                "children": [
+                  {
+                    "attributes": {
+                      "constant": false,
+                      "name": "question_id",
+                      "scope": 635,
+                      "stateVariable": false,
+                      "storageLocation": "default",
+                      "type": "bytes32",
+                      "value": null,
+                      "visibility": "internal"
+                    },
+                    "children": [
+                      {
+                        "attributes": {
+                          "name": "bytes32",
+                          "type": "bytes32"
+                        },
+                        "id": 627,
+                        "name": "ElementaryTypeName",
+                        "src": "98:7:4"
+                      }
+                    ],
+                    "id": 628,
+                    "name": "VariableDeclaration",
+                    "src": "98:19:4"
+                  },
+                  {
+                    "attributes": {
+                      "constant": false,
+                      "name": "question_answer",
+                      "scope": 635,
+                      "stateVariable": false,
+                      "storageLocation": "default",
+                      "type": "bytes32",
+                      "value": null,
+                      "visibility": "internal"
+                    },
+                    "children": [
+                      {
+                        "attributes": {
+                          "name": "bytes32",
+                          "type": "bytes32"
+                        },
+                        "id": 629,
+                        "name": "ElementaryTypeName",
+                        "src": "119:7:4"
+                      }
+                    ],
+                    "id": 630,
+                    "name": "VariableDeclaration",
+                    "src": "119:23:4"
+                  }
+                ],
+                "id": 631,
+                "name": "ParameterList",
+                "src": "97:46:4"
+              },
+              {
+                "attributes": {
+                  "parameters": [
+                    null
+                  ]
+                },
+                "children": [],
+                "id": 632,
+                "name": "ParameterList",
+                "src": "144:0:4"
+              },
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "id": 633,
+                    "name": "Throw",
+                    "src": "154:5:4"
+                  }
+                ],
+                "id": 634,
+                "name": "Block",
+                "src": "144:22:4"
+              }
+            ],
+            "id": 635,
+            "name": "FunctionDefinition",
+            "src": "65:101:4"
+          }
+        ],
+        "id": 636,
+        "name": "ContractDefinition",
+        "src": "25:144:4"
+      }
+    ],
+    "id": 637,
+    "name": "SourceUnit",
+    "src": "0:170:4"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.4.18+commit.9cf6e910.Emscripten.clang"
+  },
   "networks": {},
-  "schema_version": "0.0.5",
-  "updated_at": 1507346266637
+  "schemaVersion": "1.0.1",
+  "updatedAt": "2017-12-12T03:19:08.957Z"
 }

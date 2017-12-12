@@ -1,0 +1,333 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Fees and payments &mdash; Reality Check  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Reality Check  documentation" href="index.html"/>
+        <link rel="next" title="White paper" href="whitepaper.html"/>
+        <link rel="prev" title="Arbitrators" href="arbitrators.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Reality Check
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="dapp.html">Using the Reality Check dapp</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contracts.html">Using Reality Check from a contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a></li>
+<li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Fees and payments</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#question-fee">Question fee</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#question-reward">Question reward</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#answer-bond">Answer bond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#answer-takeover-fee">Answer takeover fee</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#arbitration-fee">Arbitration fee</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="whitepaper.html">White paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contract_explanation.html">Contract Internals</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Reality Check</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Fees and payments</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/fees.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="fees-and-payments">
+<h1>Fees and payments<a class="headerlink" href="#fees-and-payments" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<p>All fees are set by participants.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="15%" />
+<col width="17%" />
+<col width="18%" />
+<col width="12%" />
+<col width="39%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Fee</th>
+<th class="head">Set by</th>
+<th class="head">Paid by</th>
+<th class="head">Deductions</th>
+<th class="head">Paid to</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Question fee</td>
+<td>Arbitrator</td>
+<td>Asker</td>
+<td>&#160;</td>
+<td>Arbitrator</td>
+</tr>
+<tr class="row-odd"><td>Question reward</td>
+<td>Asker</td>
+<td>Asker</td>
+<td>&#160;</td>
+<td>Highest-bonded correct answerer</td>
+</tr>
+<tr class="row-even"><td>Answer bond</td>
+<td>Answerer</td>
+<td>Answerer</td>
+<td>Takeover fee</td>
+<td>Answerer, or Next correct answerer</td>
+</tr>
+<tr class="row-odd"><td>Takeover fee</td>
+<td>[= previous bond]</td>
+<td>Subsequent answerer</td>
+<td>&#160;</td>
+<td>Previous answerer</td>
+</tr>
+<tr class="row-even"><td>Arbitration fee</td>
+<td>Arbitration</td>
+<td>Anyone</td>
+<td>&#160;</td>
+<td>Arbitrator</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="question-fee">
+<h2>Question fee<a class="headerlink" href="#question-fee" title="Permalink to this headline">¶</a></h2>
+<p>A fee set (optionally) by the arbitrator for asking a question.</p>
+<p>Set by the arbitrator.</p>
+<p>Paid by the question asker.</p>
+<p>Paid to the arbitrator.</p>
+</div>
+<div class="section" id="question-reward">
+<h2>Question reward<a class="headerlink" href="#question-reward" title="Permalink to this headline">¶</a></h2>
+<p>A reward for answering the question.</p>
+<p>Set by the question asker.</p>
+<p>Paid by the question asker.</p>
+<p>Paid to whoever last gives the final answer. If the answer is decided by the arbitrator, and they decide the final answer given is incorrect, it should be paid to whoever pays for arbitration.</p>
+</div>
+<div class="section" id="answer-bond">
+<h2>Answer bond<a class="headerlink" href="#answer-bond" title="Permalink to this headline">¶</a></h2>
+<p>A bond paid by someone who gives an answer to back their claim that the answer is correct.</p>
+<p>Set by the question answerer. However, if there is an earlier answer, it must be least twice the level of the bond given with that answer.</p>
+<p>Paid by the question answerer.</p>
+<p>If the answer is correct (ie matches the final answer) this is returned. The same amount may be received as an Answer Takeover Fee (see below).</p>
+<p>If the answer is incorrect, this is paid to the next answerer to supply the correct answer.</p>
+</div>
+<div class="section" id="answer-takeover-fee">
+<h2>Answer takeover fee<a class="headerlink" href="#answer-takeover-fee" title="Permalink to this headline">¶</a></h2>
+<p>A fee for taking over a correct answer given by someone else.</p>
+<p>Set to equal the bond supplied by the last person to give that answer.</p>
+<p>Paid to the last person to give that answer.</p>
+<p>Paid by deducting it from payments that would otherwise by awarded for giving the correct answer.</p>
+</div>
+<div class="section" id="arbitration-fee">
+<h2>Arbitration fee<a class="headerlink" href="#arbitration-fee" title="Permalink to this headline">¶</a></h2>
+<p>A fee paid to the arbitrator when requesting that they intervene and provide arbitration for a question.</p>
+<p>Set by the arbitrator.</p>
+<p>Paid to the arbitrator.</p>
+<p>Paid by the user requesting arbitration. Usually this will be an answerer whoses answer has been replaced by another answerer supplying a higher bond. They would normally not request arbitration until bonds have reached a level where the amount they stand to gain exceeds the arbitration fee.</p>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="whitepaper.html" class="btn btn-neutral float-right" title="White paper" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="arbitrators.html" class="btn btn-neutral" title="Arbitrators" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, KK Social Minds.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -36,7 +36,8 @@
               href="genindex.html"/>
         <link rel="search" title="Search" href="search.html"/>
     <link rel="top" title="Reality Check  documentation" href="index.html"/>
-        <link rel="prev" title="Arbitrators" href="arbitrators.html"/> 
+        <link rel="next" title="Contract Internals" href="contract_explanation.html"/>
+        <link rel="prev" title="Fees and payments" href="fees.html"/> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -92,6 +93,7 @@
 <li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a></li>
 <li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
 <li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fees.html">Fees and payments</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">White paper</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#goals">Goals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#basic-process">Basic Process</a></li>
@@ -99,9 +101,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#large-eth-holders-getting-rewarded-over-useful-information-providers">Large ETH holders getting rewarded over useful information providers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#transaction-front-running">Transaction front-running</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#network-unavailability-and-congestion">Network unavailability and congestion</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gas-exhaustion-and-bonds-that-are-uneconomical-to-claim">Gas exhaustion and bonds that are uneconomical to claim.</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#spam-and-user-cognitive-exhaustion">Spam and user cognitive exhaustion</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#gas-exhaustion-and-bonds-that-are-uneconomical-to-claim">Gas exhaustion and bonds that are uneconomical to claim.</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#structuring-and-fetching-information">Structuring and fetching information</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#encoding-questions">Encoding questions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#encoding-answers">Encoding answers</a></li>
@@ -111,6 +114,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#arbitration-mechanisms">Arbitration mechanisms</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="contract_explanation.html">Contract Internals</a></li>
 </ul>
 
             
@@ -197,6 +201,7 @@
 <li>The question text and terms. (See “Encoding questions” below.)</li>
 <li>The <code class="docutils literal"><span class="pre">timeout</span></code>, which is how many seconds since the last answer the system will wait before finalizing on it.</li>
 <li>The <code class="docutils literal"><span class="pre">arbitrator</span></code>, which is the address of a contract that will be able to intervene and decide the final answer, in return for a fee.</li>
+<li>Optionally, an <code class="docutils literal"><span class="pre">opening_ts</span></code>, specifying the earliest it should be permitted to answer the question.</li>
 </ul>
 </dd>
 </dl>
@@ -250,13 +255,19 @@
 <p>The system has been implemented with the goal of making it as cheap as practical to send answers that correct previous answers. The full answer history is not held in contract storage, so giving a new answer does not expand storage, which is a particularly expensive operation. Instead the contract stores only the hash of the latest answer in the history, combined with the hash of the previous answer in the history to establish an untamperable chain. Since the answer history is not held by the contract, it instead has to be supplied to the <code class="docutils literal"><span class="pre">claimWinnings()</span></code> transaction at the end of the process. The result is that although posting a question and giving the first answer both cost around 100,000 gas, posting the subsequent answer can be done for around 50,000 gas, a little over twice the cost of a simple ETH send.</p>
 <p>In future it may be also useful to use an on-chain gas price oracle to detect conditions of low availability.</p>
 </div>
-</div>
 <div class="section" id="gas-exhaustion-and-bonds-that-are-uneconomical-to-claim">
-<h2>Gas exhaustion and bonds that are uneconomical to claim.<a class="headerlink" href="#gas-exhaustion-and-bonds-that-are-uneconomical-to-claim" title="Permalink to this headline">¶</a></h2>
+<h3>Gas exhaustion and bonds that are uneconomical to claim.<a class="headerlink" href="#gas-exhaustion-and-bonds-that-are-uneconomical-to-claim" title="Permalink to this headline">¶</a></h3>
 <p>Unless specified by the creator of a question, the system does not force a minimum value on the size of any given bond. Although the doubling process puts a practical limit on the number of answers it may reasonably be expected to handle, there may still be a number of very small bonds submitted before the recoverable bonds reach the value of the gas required to recover them.</p>
 <p>In theory the gas required to claim bonds for all the answers that have been supplied may exceed the Block Gas Limit.</p>
 <p>This is handled by starting the claim process from the latest (highest-value) end, and allowing the claimer to stop before getting to the first answer in the series and leave bonds unclaimed. It also allows the claim to be split over multiple transactions, each leaving the contract with an earlier transaction history hash.</p>
 <p>To make sure there is enough money left to pay for an answer that was taken over from another user, the claimer is not paid for transaction <code class="docutils literal"><span class="pre">n</span></code> until the system has seen transaction <code class="docutils literal"><span class="pre">n-1</span></code>. Since the bond always decreases as we follow the history backwards, it can safely pay out for <code class="docutils literal"><span class="pre">n+1</span></code> and higher.</p>
+</div>
+<div class="section" id="spam-and-user-cognitive-exhaustion">
+<h3>Spam and user cognitive exhaustion<a class="headerlink" href="#spam-and-user-cognitive-exhaustion" title="Permalink to this headline">¶</a></h3>
+<p>As described above the system’s funding is a closed loop: Unless arbitration is involved, all funds sent to the contract by anonymous users can be claimed by other anonymous users. With the exception of gas fees, the cost of posting a question is recovered by the person who answers it correctly. This allows users to ask questions with high rewards and answer their own questions, potentially within the same transaction. User interfaces like the Reality Check DApp are unable to tell the difference between a question to which someone genuinely wants an answer, and a question that someone intends to answer themselves, with the goal of promoting the visibility of some information, potentially at the cost of other questions competing for the user’s attention in the same UI. This can be not only a potential nuisance but also a security problem, because a malicious user could flood the system with correctly-answered questions to make it hard for honest users to find wrongly-answered questions.</p>
+<p>When gas costs are high, the gas cost of asking a question and providing the first answer may be sufficient to deter the asking of questions for which an answer is not really wanted. However, if gas costs are low, it may be necessary to provide a “sink” so that not all the funds put in by anonymous users can be reclaimed. The amount of funds required for such a “sink” may vary depending on the ETH exchange rate and other external factors.</p>
+<p>We handle this by allowing the arbitrator to set a per-question fee, which is subtracted from the value sent to the <code class="docutils literal"><span class="pre">askQuestion()</span></code> function. This also provides a potential income stream for the arbitrator in the events that disputes are rare, which they are likely to be if the system is functioning as intended. User interfaces can filter by arbitrator to avoid their users to avoid arbitrators with excessively low fees, or unknown arbitrators who may be controlled by they hypothetical malicious user.</p>
+</div>
 </div>
 <div class="section" id="structuring-and-fetching-information">
 <h2>Structuring and fetching information<a class="headerlink" href="#structuring-and-fetching-information" title="Permalink to this headline">¶</a></h2>
@@ -294,7 +305,7 @@
 <p>The issue of at what point a question is decided, and in what ways it may be reported as undecided, is quite complex. Some uses require reporters to provide the best information available to them at the time, while others are not interested in an answer until it is reasonably clear. Many contracts will only be interested in a positive answer, eg an insurance contract might be interested in finding out when your house has burned down, but have no interest in the infinite number of occasions on which it did not burn down.</p>
 <p>The handling of null, undecided or unclear answers is considered outside the scope of the system and left to the terms of each individual question. The terms of the question may designate a particular value or range of values to mean things like “undecided” or “uncertain”. They may also specify the level of certainty and/or finality that should be applied when evaluating the result at any given time.</p>
 <p>There is no way to pause a question once it has been asked, so if the answer to a question at any given time is “null” or “undecided” or “too early to sensibly ask”, these values may be be settled on as the final result. Contracts consuming this data should be prepared to simply reject any answer they are not interested in, and wait for the same question to be asked again and get an answer in the range that does interest them.</p>
-<p>After settlement Reality Check will preserve information about the question hash, arbitrator, timeout, final bond, and finalization date, so consuming contracts can ask a user to send them a question ID, then verify that it meets the minimum conditions it requires to trust the information. We also provide a wrapper contract that will allow contracts to request an answer meeting its conditions. This allows consumer contracts to send a request and receive a callback, sent by an arbitrary user in return for a fee, on a similar model to the Ethereum Alarm Clock.</p>
+<p>After settlement Reality Check will preserve information about the question hash, a, timeout, final bond, and finalization date, so consuming contracts can ask a user to send them a question ID, then verify that it meets the minimum conditions it requires to trust the information. We also provide a wrapper contract that will allow contracts to request an answer meeting its conditions. This allows consumer contracts to send a request and receive a callback, sent by an arbitrary user in return for a fee, on a similar model to the Ethereum Alarm Clock.</p>
 </div>
 </div>
 <div class="section" id="arbitration-mechanisms">
@@ -315,8 +326,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
+        <a href="contract_explanation.html" class="btn btn-neutral float-right" title="Contract Internals" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
-        <a href="arbitrators.html" class="btn btn-neutral" title="Arbitrators" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+        <a href="fees.html" class="btn btn-neutral" title="Fees and payments" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

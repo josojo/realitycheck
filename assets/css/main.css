@@ -2328,6 +2328,18 @@ input:placeholder-shown {
   color: #939596;
   font-family: inherit; }
 
+#opening-ts-datepicker::-webkit-input-placeholder {
+  color: #ffffff;
+  font-size: 13px; }
+
+#opening-ts-datepicker:-ms-input-placeholder {
+  color: #ffffff;
+  font-size: 13px; }
+
+#opening-ts-datepicker::placeholder {
+  color: #ffffff;
+  font-size: 13px; }
+
 .error-container {
   font-size: 13px;
   color: #ffffff;

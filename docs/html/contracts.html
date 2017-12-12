@@ -106,7 +106,9 @@
 <li class="toctree-l1"><a class="reference internal" href="encoding.html">How data is encoded</a></li>
 <li class="toctree-l1"><a class="reference internal" href="availability.html">Unavailability and null responses</a></li>
 <li class="toctree-l1"><a class="reference internal" href="arbitrators.html">Arbitrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fees.html">Fees and payments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="whitepaper.html">White paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contract_explanation.html">Contract Internals</a></li>
 </ul>
 
             
@@ -223,11 +225,13 @@
 5
 6
 7
-8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">askQuestion</span><span class="p">(</span>
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">askQuestion</span><span class="p">(</span>
    <span class="nx">uint256</span> <span class="nx">template_id</span><span class="p">,</span>
    <span class="nx">string</span> <span class="nx">question</span><span class="p">,</span>
    <span class="nx">address</span> <span class="nx">arbitrator</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">timeout</span><span class="p">,</span>
+   <span class="nx">uint32</span> <span class="nx">timeout</span><span class="p">,</span>
+   <span class="nx">uint32</span> <span class="nx">opening_ts</span><span class="p">,</span>
    <span class="nx">uint256</span> <span class="nx">nonce</span>
 <span class="p">)</span>
 <span class="nx">returns</span> <span class="p">(</span><span class="nx">bytes32</span> <span class="nx">question_id</span><span class="p">);</span>
@@ -242,14 +246,14 @@
 <p>In many cases you are not interested in the result of a particular question until it has a particular answer. For example, if you have a contract insuring against my house burning down, you are only interested in the result if my house burned down. You don’t care about all the times in between setting up the policy and claiming when my house didn’t burn down.</p>
 <p>You may also want to screen out results indicating “unknown” or “no way to tell” or “hasn’t happened yet”.</p>
 <p>One approach is that instead of waiting for the result of a specific <code class="docutils literal"><span class="pre">question_id</span></code>, you specify the type of question you want, then wait for a user to send you a question ID with the appropriate content and settings.</p>
-<p>To make this easier, we allow you to pass some extra arguments to <code class="docutils literal"><span class="pre">getFinalAnswer()</span></code>. This will throw an error not only if the question is not yet answered, but also if the content doesn’t match, the bond or timeout is too low, or the arbitrator is not the one you expect.</p>
+<p>To make this easier, we provide a method called <code class="docutils literal"><span class="pre">getFinalAnswerIfMatches()</span></code>. This will throw an error not only if the question is not yet answered, but also if the content doesn’t match, the bond or timeout is too low, or the arbitrator is not the one you expect.</p>
 <div class="highlight-javascript"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
 3
 4
 5
 6
-7</pre></div></td><td class="code"><div class="highlight"><pre><span></span> <span class="kd">function</span> <span class="nx">getFinalAnswer</span><span class="p">(</span>
+7</pre></div></td><td class="code"><div class="highlight"><pre><span></span> <span class="kd">function</span> <span class="nx">getFinalAnswerIfMatches</span><span class="p">(</span>
      <span class="nx">bytes32</span> <span class="nx">question_id</span><span class="p">,</span>
      <span class="nx">bytes32</span> <span class="nx">content_hash</span><span class="p">,</span>
      <span class="nx">address</span> <span class="nx">arbitrator</span><span class="p">,</span>
@@ -325,7 +329,7 @@
 <div class="section" id="making-sure-a-question-has-an-answer">
 <h2>Making sure a question has an answer<a class="headerlink" href="#making-sure-a-question-has-an-answer" title="Permalink to this headline">¶</a></h2>
 <p>As discussed in <a class="reference internal" href="availability.html"><span class="doc">Unavailability and null responses</span></a>, when a question is asked, the answer may be “don’t know” or “don’t understand” or “this isn’t settled yet”. Contracts relying on Reality Check for information need to be designed to take account of this possibility.</p>
-<p>After settlement Reality Check will preserve information about the <code class="docutils literal"><span class="pre">content_hash_,</span> <span class="pre">``arbitrator</span></code>, <code class="docutils literal"><span class="pre">timeout</span></code>, finalization date (in <code class="docutils literal"><span class="pre">finalization_state</span></code> and highest-posted <code class="docutils literal"><span class="pre">bond</span></code>. Contracts can either check this information directly or pass their requirements to <code class="docutils literal"><span class="pre">getFinalAnswer()</span></code>.</p>
+<p>After settlement Reality Check will preserve information about the <code class="docutils literal"><span class="pre">content_hash_,</span> <span class="pre">``arbitrator</span></code>, <code class="docutils literal"><span class="pre">timeout</span></code>, <code class="docutils literal"><span class="pre">finalization_ts</span></code> (finalization timestamp) and highest-posted <code class="docutils literal"><span class="pre">bond</span></code>. Contracts can either check this information directly or pass their requirements to <code class="docutils literal"><span class="pre">getFinalAnswerIfMatches()</span></code>.</p>
 <p>We also provide a wrapper contract that will allow contracts to request an answer meeting its conditions. This allows consumer contracts to send a request and receive a callback, sent by an arbitrary user in return for a fee, on a similar model to the Ethereum Alarm Clock.</p>
 </div>
 </div>

@@ -26,7 +26,8 @@ var template_content = {
     1: '{"title": "%s", "type": "uint", "decimals": 18, "category": "%s"}',
     2: '{"title": "%s", "type": "int", "decimals": 18, "category": "%s"}',
     3: '{"title": "%s", "type": "single-select", "outcomes": [%s], "category": "%s"}',
-    4: '{"title": "%s", "type": "multiple-select", "outcomes": [%s], "category": "%s"}'
+    4: '{"title": "%s", "type": "multiple-select", "outcomes": [%s], "category": "%s"}',
+    5: '{"title": "%s", "type": "datetime", "category": "%s"}'
 };
 var QUESTION_DELIMITER = '\u241f'; // Thought about '\u0000' but it seems to break something;
 
@@ -37,7 +38,8 @@ const QUESTION_TYPE_TEMPLATES = {
     'uint': 1,
     'int': 2,
     'single-select': 3,
-    'multiple-select': 4
+    'multiple-select': 4,
+    'datetime': 5
 };
 
 const BLOCK_EXPLORERS = {
@@ -88,21 +90,23 @@ var current_block_number = 1;
 const Qi_question_id = 0;
 
 // NB This has magic values - 0 for no answer, 1 for pending arbitration, 2 for pending arbitration with answer, otherwise timestamp
-const Qi_finalization_ts = 1; 
+const Qi_content_hash = 1;
 const Qi_arbitrator = 2;
-const Qi_timeout = 3;
-const Qi_content_hash = 4;
-const Qi_bounty = 5;
-const Qi_best_answer = 6;
-const Qi_bond = 7;
-const Qi_history_hash = 8;
-const Qi_question_json = 9; // We add this manually after we load the template data
-const Qi_creation_ts = 10; // We add this manually from the event log
-const Qi_question_creator = 11; // We add this manually from the event log
-const Qi_question_created_block = 12;
-const Qi_question_text = 13;
-const Qi_template_id = 14;
-const Qi_block_mined = 15;
+const Qi_opening_ts = 3;
+const Qi_timeout = 4;
+const Qi_finalization_ts = 5;
+const Qi_is_pending_arbitration = 6;
+const Qi_bounty = 7;
+const Qi_best_answer = 8;
+const Qi_history_hash = 9;
+const Qi_bond = 10;
+const Qi_question_json = 11; // We add this manually after we load the template data
+const Qi_creation_ts = 12; // We add this manually from the event log
+const Qi_question_creator = 13; // We add this manually from the event log
+const Qi_question_created_block = 14;
+const Qi_question_text = 15;
+const Qi_template_id = 16;
+const Qi_block_mined = 17;
 
 BigNumber.config({ RABGE: 256});
 const ONE_ETH = 1000000000000000000;
@@ -132,8 +136,9 @@ var question_event_times = {}; // Hold timer IDs for things we display that need
 
 var window_position = [];
 
-var $ = require('jquery-browserify')
+var $ = require('jquery-browserify');
 require('jquery-expander')($);
+require('jquery-datepicker');
 
 import imagesLoaded from 'imagesloaded';
 import interact from 'interactjs';
@@ -161,19 +166,19 @@ const monthList = [
     'Dec'
 ];
 
-function contentHash(template_id, content) {
+function contentHash(template_id, opening_ts, content) {
     return "0x" + ethereumjs_abi.soliditySHA3(
-        ["uint256", "string"],
-        [ new BN(template_id), content]
+        ["uint256", "uint32", "string"],
+        [ new BN(template_id), new BN(opening_ts), content]
     ).toString('hex');
 }
 
-function questionID(template_id, question, arbitrator, timeout, sender, nonce) {
-    var content_hash = contentHash(template_id, question);
+function questionID(template_id, question, arbitrator, timeout, opening_ts, sender, nonce) {
+    var content_hash = contentHash(template_id, opening_ts, question);
     // The seems to be something wrong with how soliditySHA3 handles bytes32, so tell it we gave it uint256
     return "0x" + ethereumjs_abi.soliditySHA3(
         //["bytes32", "address", "uint256", "address", "uint256"],
-        ["uint256", "address", "uint256", "address", "uint256"],
+        ["uint256", "address", "uint32", "address", "uint256"],
         [ new BN(content_hash.replace(/^0x/, ''), 16), arbitrator, new BN(timeout), sender, new BN(nonce)]
     ).toString('hex');
 }
@@ -233,7 +238,7 @@ function bytes32ToString(bytes32str, qjson) {
     var bn;
     if (qtype == 'int') {
         var bn = new BN(bytes32str, 16).fromTwos(256);
-    } else if (qtype == 'uint') {
+    } else if (qtype == 'uint' || qtype == 'datetime') {
         var bn = new BN(bytes32str, 16);
     } else {
         throw Error("Unrecognized answer type " + qtype);
@@ -417,7 +422,9 @@ $(document).on('change', 'select.arbitrator', function() {
 });
 
 $(document).on('click', '.rcbrowser', function(){
-    $(this).css('z-index', ++zindex);
+    zindex += 1;
+    $(this).css('z-index', zindex);
+    $('.ui-datepicker').css('z-index', zindex + 1);
     $(this).find('.question-setting-warning').find('.balloon').css('z-index', ++zindex);
     $(this).find('.question-setting-info').find('.balloon').css('z-index', zindex);
 });
@@ -510,6 +517,12 @@ $('#post-a-question-button,.post-a-question-link').on('click', function(e){
     });
 
     $('#post-a-question-window-template').before(question_window);
+    $('#opening-ts-datepicker').datepicker({
+        dateFormat: 'yy-mm-dd',
+        onSelect: function(dateText){
+            $(this).css('background-color', '#ffffff');
+        }
+    });
     //console.log('cloned window', question_window);
     if (!question_window.hasClass('is-open')) {
         question_window.css('z-index', ++zindex);
@@ -563,6 +576,7 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
     }
     var question_type = win.find('.question-type');
     var answer_options = win.find('.answer-option');
+    var opening_ts_val = win.find('.opening-ts').val();
     var category = win.find('div.select-container--question-category select');
     var outcomes = [];
     for (var i = 0; i < answer_options.length; i++) {
@@ -582,8 +596,10 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
         }
         qtext = qtext + QUESTION_DELIMITER + category.val();
 
-        var question_id = questionID(template_id, qtext, arbitrator, timeout_val, account, 0);
-        rc.askQuestion.sendTransaction(template_id, qtext, arbitrator, timeout_val, 0, {from: account, gas: 200000, value: web3.toWei(new BigNumber(reward.val()), 'ether')})
+        var question_id = questionID(template_id, qtext, arbitrator, timeout_val, opening_ts, account, 0);
+        var opening_ts = new Date(opening_ts_val);
+        opening_ts = opening_ts / 1000;
+        rc.askQuestion.sendTransaction(template_id, qtext, arbitrator, timeout_val, opening_ts, 0, {from: account, gas: 200000, value: web3.toWei(new BigNumber(reward.val()), 'ether')})
         .then(function(txid) {
             //console.log('sent tx with id', txid);
             
@@ -596,19 +612,21 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
                     'user': account,
                     'arbitrator': arbitrator,
                     'timeout': new BigNumber(timeout_val),
-                    'content_hash': contentHash(template_id, qtext),
+                    'content_hash': contentHash(template_id, parseInt(opening_ts), qtext),
                     'template_id': new BigNumber(template_id),
                     'question': qtext,
                     'created': new BigNumber(parseInt(new Date().getTime() / 1000)),
+                    'opening_ts': new BigNumber(parseInt(opening_ts))
                 }
             }
             var fake_call = [];
             fake_call[Qi_finalization_ts-1] = new BigNumber(0);
             fake_call[Qi_arbitrator-1] = arbitrator;
             fake_call[Qi_timeout-1] = new BigNumber(timeout_val);
-            fake_call[Qi_content_hash-1] = contentHash(template_id, qtext),
+            fake_call[Qi_content_hash-1] = contentHash(template_id, parseInt(opening_ts), qtext),
             fake_call[Qi_bounty-1] = web3.toWei(new BigNumber(reward.val()), 'ether');
             fake_call[Qi_history_hash-1] = "0x0";
+            fake_call[Qi_opening_ts-1] = new BigNumber(opening_ts);
 
             var q = filledQuestionDetail(question_id, 'question_log', 0, fake_log); 
             q = filledQuestionDetail(question_id, 'question_call', 0, fake_call); 
@@ -652,6 +670,12 @@ $(document).on('click', '#post-a-question-window .post-question-submit', functio
 
 });
 
+$(document).on('blur', '#opening-ts-datepicker', function(e){
+    if (!$('#opening-ts-datepicker').val()) {
+        $('#opening-ts-datepicker').css('background-color', '#4d535a');
+    }
+});
+
 function isArbitratorValid(arb) {
     var found = false;
     let arbitrator_addrs = $('select.arbitrator').children();
@@ -665,8 +689,7 @@ function isArbitratorValid(arb) {
 }
 
 function isArbitrationPending(question) {
-    // finalization_ts has a magical timestamp of 1 meaning pending arbitration 
-    return (question[Qi_finalization_ts].toNumber() == 1)
+    return (question[Qi_is_pending_arbitration]);
 }
 
 function isAnswered(question) {
@@ -1096,6 +1119,7 @@ function filledQuestionDetail(question_id, data_type, freshness, data) {
                 question[Qi_question_text] = data.args['question'];
                 question[Qi_template_id] = data.args['template_id'].toNumber();
                 question[Qi_block_mined] = data.blockNumber;
+                question[Qi_opening_ts] = data.args['opening_ts'];
                 //question[Qi_bounty] = data.args['bounty'];
             }
             break;
@@ -1827,6 +1851,9 @@ function displayQuestionDetail(question_detail) {
         Ps.initialize(rcqa.find('.rcbrowser-inner').get(0));
     }
 
+    if (rcqa.find('[name="input-answer"]').hasClass('rcbrowser-input--date--answer')) {
+        rcqa.find('[name="input-answer"]').datepicker({dateFormat: 'yy-mm-dd'});
+    }
 }
 
 function populateQuestionWindow(rcqa, question_detail, is_refresh) {
@@ -1987,7 +2014,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
     // Arbitrator
     if (!isArbitrationPending(question_detail) && !isFinalized(question_detail)) {
         Arbitrator.at(question_detail[Qi_arbitrator]).then(function(arb) {
-            return arb.getFee.call(question_id);
+            return arb.getDisputeFee.call(question_id);
         }).then(function(fee) {
             //rcqa.find('.arbitrator').text(question_detail[Qi_arbitrator]);
             rcqa.find('.arbitration-fee').text(web3.fromWei(fee.toNumber(), 'ether')); 
@@ -1996,7 +2023,7 @@ function populateQuestionWindow(rcqa, question_detail, is_refresh) {
 
     if (!is_refresh) {
         // answer form
-        var ans_frm = makeSelectAnswerInput(question_json);
+        var ans_frm = makeSelectAnswerInput(question_json, question_detail[Qi_opening_ts].toNumber());
         ans_frm.addClass('is-open');
         ans_frm.removeClass('template-item');
         rcqa.find('.answered-history-container').after(ans_frm);
@@ -2538,42 +2565,60 @@ function getAnswerString(question_json, answer) {
                 label = label.substr(0, label.length - 3);
             }
             break;
+        case 'datetime':
+            let ts = parseInt(bytes32ToString(answer, question_json));
+            let dateObj = new Date(ts * 1000);
+            let year = dateObj.getFullYear();
+            let month = dateObj.getMonth() + 1;
+            let date = dateObj.getDate();
+            label = year + '/' + month + '/' + date;
+            break;
     }
 
     return label;
 }
 
-function makeSelectAnswerInput(question_json) {
+function makeSelectAnswerInput(question_json, opening_ts) {
     var type = question_json['type'];
     var options = question_json['outcomes'];
-    var template_name = '.answer-form-container.' + question_json['type'] + '.template-item';
-    var ans_frm = $(template_name).clone();
-    ans_frm.removeClass('template-item');
 
-    switch (type) {
-        case 'single-select':
-            for (var i = 0; i < options.length; i++ ) {
-                var option_elm = $('<option>');
-                option_elm.val(i);
-                option_elm.text(options[i]);
-                ans_frm.find('.select-answer').append(option_elm);
-            }
-            break;
-        case 'multiple-select':
-            for (var i = options.length-1; i >= 0; i-- ) {
-                var elmtpl = ans_frm.find('.input-entry.template-item');
-                var elm = elmtpl.clone();
-                elm.removeClass('template-item');
-                var elinput = elm.find('input');
-                elinput.attr('name', 'input-answer');
-                elinput.val(i);
-                var ellabel = elm.find('span');
-                ellabel.text(options[i]);
-                // Here we copy the content and throw away the container
-                elmtpl.after(elm);
-            }
-            //ans_frm.find('input:checkbox').wrap('<label></label>');
-            break;
+    var now = new Date();
+    if (opening_ts && now.getTime() < opening_ts * 1000) {
+        var template_name = '.answer-form-container.before-opening.template-item';
+        var ans_frm = $(template_name).clone();
+        ans_frm.removeClass('template-item');
+        ans_frm.find('.opening-time-label .timeago').attr('datetime', convertTsToString(opening_ts));
+        timeAgo.render(ans_frm.find('.opening-time-label .timeago'));
+    } else {
+        var template_name = '.answer-form-container.' + question_json['type'] + '.template-item';
+        var ans_frm = $(template_name).clone();
+        ans_frm.removeClass('template-item');
+
+        switch (type) {
+            case 'single-select':
+                for (var i = 0; i < options.length; i++ ) {
+                    var option_elm = $('<option>');
+                    option_elm.val(i);
+                    option_elm.text(options[i]);
+                    ans_frm.find('.select-answer').append(option_elm);
+                }
+                break;
+            case 'multiple-select':
+                for (var i = options.length-1; i >= 0; i-- ) {
+                    var elmtpl = ans_frm.find('.input-entry.template-item');
+                    var elm = elmtpl.clone();
+                    elm.removeClass('template-item');
+                    var elinput = elm.find('input');
+                    elinput.attr('name', 'input-answer');
+                    elinput.val(i);
+                    var ellabel = elm.find('span');
+                    ellabel.text(options[i]);
+                    // Here we copy the content and throw away the container
+                    elmtpl.after(elm);
+                }
+                //ans_frm.find('input:checkbox').wrap('<label></label>');
+                break;
+        }
     }
 
     return ans_frm;
@@ -2712,6 +2757,10 @@ $(document).on('click', '.post-answer-button', function(e) {
             new_answer = parent_div.find('[name="input-answer"]').val();
         } else if (question_json['type'] == 'int') {
             new_answer = parent_div.find('[name="input-answer"]').val();
+        } else if (question_json['type'] == 'datetime') {
+            let answer_val = parent_div.find('[name="input-answer"]').val();
+            let answer_date = new Date(answer_val);
+            new_answer = answer_date.getTime() / 1000;
         } else {
             new_answer = parseInt(parent_div.find('[name="input-answer"]').val());
         }
@@ -2915,7 +2964,7 @@ $(document).on('click', '.arbitration-button', function(e) {
     var arbitrator;
     Arbitrator.at(question_detail[Qi_arbitrator]).then(function(arb) {
         arbitrator = arb;
-        return arb.getFee.call(question_id);
+        return arb.getDisputeFee.call(question_id);
     }).then(function(fee) {
         arbitration_fee = fee;
         //console.log('got fee', arbitration_fee.toString());

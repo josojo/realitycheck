@@ -7,26 +7,32 @@ from ethereum.tools import keys
 import time
 from sha3 import keccak_256
 from hashlib import sha256
+from web3 import Web3
 
 import os
 
 # Command-line flag to skip tests we're not working on
 WORKING_ONLY = os.environ.get('WORKING_ONLY', False)
 
-QINDEX_FINALIZATION_TS = 0
+QINDEX_CONTENT_HASH = 0
 QINDEX_ARBITRATOR = 1
-QINDEX_STEP_DELAY = 2
-QINDEX_QUESTION_HASH = 3
-QINDEX_BOUNTY = 4
-QINDEX_ARBITRATION_BOUNTY = 5
-QINDEX_BEST_ANSWER_ID = 6
-QINDEX_HISTORY_HASH = 7
+QINDEX_OPENING_TS = 2
+QINDEX_STEP_DELAY = 3
+QINDEX_FINALIZATION_TS = 4
+QINDEX_IS_PENDING_ARBITRATION = 5
+QINDEX_BOUNTY = 6
+QINDEX_BEST_ANSWER_ID = 7
+QINDEX_HISTORY_HASH = 8
+QINDEX_BOND = 9
 
 def calculate_commitment_hash(answer, nonce):
     return decode_hex(keccak_256(answer + decode_hex(hex(nonce)[2:].zfill(64))).hexdigest())
 
 def calculate_commitment_id(question_id, answer_hash, bond):
     return decode_hex(keccak_256(question_id + answer_hash + decode_hex(hex(bond)[2:].zfill(64))).hexdigest())
+
+def calculate_content_hash(template_id, question_str, opening_ts):
+    return Web3.soliditySha3(['uint256', 'uint32', 'string'], [template_id, opening_ts, question_str])
 
 def from_question_for_contract(txt):
     return txt
@@ -53,8 +59,10 @@ class TestRealityCheck(TestCase):
         # Not sure what the right way is to get pyethereum to import the dependencies
         # Pretty sure it's not this, but it does the job:
         safemath = open('SafeMath.sol').read()
+        safemath32 = open('SafeMath32.sol').read()
         balance_holder = open('BalanceHolder.sol').read()
         realitycheck_code = realitycheck_code.replace("import './SafeMath.sol';", safemath);
+        realitycheck_code = realitycheck_code.replace("import './SafeMath32.sol';", safemath32);
         realitycheck_code = realitycheck_code.replace("import './BalanceHolder.sol';", balance_holder);
 
         self.rc_code = realitycheck_code
@@ -72,13 +80,16 @@ class TestRealityCheck(TestCase):
         self.c.mine()
         self.s = self.c.head_state
 
+        self.arb0.setQuestionFee(self.rc0.address, 100)
+
         self.question_id = self.rc0.askQuestion(
             0,
             "my question",
             self.arb0.address,
             10,
             0,
-            value=1000
+            0,
+            value=1100
         )
 
         ts = self.s.timestamp
@@ -89,7 +100,7 @@ class TestRealityCheck(TestCase):
         self.assertEqual(decode_hex(question[QINDEX_ARBITRATOR][2:]), self.arb0.address)
 
         self.assertEqual(question[QINDEX_STEP_DELAY], 10)
-        #self.assertEqual(question[QINDEX_QUESTION_HASH], to_question_for_contract(("my question")))
+        #self.assertEqual(question[QINDEX_CONTENT_HASH], to_question_for_contract(("my question")))
         self.assertEqual(question[QINDEX_BOUNTY], 1000)
 
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
@@ -126,6 +137,85 @@ class TestRealityCheck(TestCase):
         self.assertTrue(self.rc0.isFinalized(self.question_id, startgas=200000))
 
         self.assertEqual(from_answer_for_contract(self.rc0.getFinalAnswer(self.question_id)), 12345)
+
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_content_hash(self):
+        expect_ch = calculate_content_hash(0, "my question", 0)
+        ch = "0x" + encode_hex(self.rc0.questions(self.question_id)[QINDEX_CONTENT_HASH])
+        self.assertEqual(expect_ch, ch)
+
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_get_final_answer_if_match(self):
+
+        expect_ch = calculate_content_hash(0, "my question", 0)
+        wrong_ch = calculate_content_hash(0, "not my question", 0)
+
+        self.rc0.submitAnswer(self.question_id, to_answer_for_contract(12345), 0, value=1) 
+
+        # Not finalized yet
+        with self.assertRaises(TransactionFailed):
+            ans = self.rc0.getFinalAnswerIfMatches(
+                self.question_id,
+                decode_hex(expect_ch[2:]),
+                self.arb0.address,
+                0,
+                25,
+                startgas=100000
+            )
+
+        self.s.timestamp = self.s.timestamp + 11
+
+        with self.assertRaises(TransactionFailed):
+            self.rc0.getFinalAnswerIfMatches(
+                self.question_id,
+                decode_hex(expect_ch[2:]),
+                keys.privtoaddr(t.k2),
+                0,
+                25,
+                startgas=100000
+            )
+
+        with self.assertRaises(TransactionFailed):
+            self.rc0.getFinalAnswerIfMatches(
+                self.question_id,
+                decode_hex(wrong_ch[2:]),
+                self.arb0.address,
+                0,
+                25,
+                startgas=100000
+            )
+
+        with self.assertRaises(TransactionFailed):
+            self.rc0.getFinalAnswerIfMatches(
+                self.question_id,
+                decode_hex(expect_ch[2:]),
+                self.arb0.address,
+                25,
+                99999999999,
+                startgas=100000
+            )
+
+        with self.assertRaises(TransactionFailed):
+            self.rc0.getFinalAnswerIfMatches(
+                self.question_id,
+                decode_hex(expect_ch[2:]),
+                self.arb0.address,
+                1893459661, # 2030-01-01
+                25,
+                startgas=100000
+            )
+
+        ans = self.rc0.getFinalAnswerIfMatches(
+            self.question_id,
+            decode_hex(expect_ch[2:]),
+            self.arb0.address,
+            0,
+            0,
+            startgas=100000
+        )
+        self.assertEqual(from_answer_for_contract(ans), 12345)
+
+
 
 
 
@@ -168,9 +258,10 @@ class TestRealityCheck(TestCase):
 
         self.assertFalse(self.rc0.isFinalized(self.question_id))
 
-        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000 ), "Requested arbitration")
+        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 ), "Requested arbitration")
         question = self.rc0.questions(self.question_id)
-        self.assertEqual(question[QINDEX_FINALIZATION_TS], 1, "When arbitration is pending for an answered question, we set the finalization_ts to 1")
+        #self.assertEqual(question[QINDEX_FINALIZATION_TS], 1, "When arbitration is pending for an answered question, we set the finalization_ts to 1")
+        self.assertTrue(question[QINDEX_IS_PENDING_ARBITRATION], "When arbitration is pending for an answered question, we set the is_pending_arbitration flag to True")
 
         # You cannot notify realitycheck of arbitration unless you are the arbitrator
         with self.assertRaises(TransactionFailed):
@@ -191,9 +282,9 @@ class TestRealityCheck(TestCase):
 
         self.assertFalse(self.rc0.isFinalized(self.question_id))
 
-        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000 ), "Requested arbitration")
+        self.assertTrue(self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000 ), "Requested arbitration")
         question = self.rc0.questions(self.question_id)
-        self.assertEqual(question[QINDEX_FINALIZATION_TS], 1, "When arbitration is pending for an answered question, we set the finalization_ts to 1")
+        self.assertTrue(question[QINDEX_IS_PENDING_ARBITRATION], "When arbitration is pending for an answered question, we set the arbitration flag to True")
 
         # You cannot submit the answer unless you are the arbitrator
         with self.assertRaises(TransactionFailed):
@@ -201,10 +292,13 @@ class TestRealityCheck(TestCase):
 
         self.arb0.submitAnswerByArbitrator(self.rc0.address, self.question_id, to_answer_for_contract(123456), self.arb0.address, startgas=200000) 
 
+        question = self.rc0.questions(self.question_id)
+        self.assertFalse(question[QINDEX_IS_PENDING_ARBITRATION], "When arbitration is done, we set the arbitration flag to False")
+
         self.assertTrue(self.rc0.isFinalized(self.question_id))
         self.assertEqual(from_answer_for_contract(self.rc0.getFinalAnswer(self.question_id)), 123456, "Arbitrator submitting final answer calls finalize")
 
-    def submitAnswerReturnUpdatedState(self, st, qid, ans, max_last, bond, sdr, is_commitment = False):
+    def submitAnswerReturnUpdatedState(self, st, qid, ans, max_last, bond, sdr, is_commitment = False, is_arbitrator = False):
         if st is None:
             st = {
                 'addr': [],
@@ -222,12 +316,14 @@ class TestRealityCheck(TestCase):
             nonce = 1234
             answer_hash = calculate_commitment_hash(to_answer_for_contract(ans), nonce)
             commitment_id = calculate_commitment_id(self.question_id, answer_hash, bond)
-            self.rc0.submitAnswerCommitment(qid, answer_hash, max_last, value=bond, sender=sdr)
+            self.rc0.submitAnswerCommitment(qid, answer_hash, max_last, keys.privtoaddr(sdr), value=bond, sender=sdr)
             st['answer'][0] = commitment_id
         else:
-            self.rc0.submitAnswer(qid, to_answer_for_contract(ans), max_last, value=bond, sender=sdr)
+            if is_arbitrator:
+                self.arb0.submitAnswerByArbitrator(self.rc0.address, qid, to_answer_for_contract(ans), 0, 0, keys.privtoaddr(sdr), startgas=200000)
+            else:
+                self.rc0.submitAnswer(qid, to_answer_for_contract(ans), max_last, value=bond, sender=sdr)
         st['nonce'].insert(0, nonce)
-
         return st
 
 
@@ -259,7 +355,7 @@ class TestRealityCheck(TestCase):
 
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
     def test_bond_claim_arbitration_existing_none(self):
-        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000)
+        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000)
         st_hash = self.rc0.questions(self.question_id)[QINDEX_HISTORY_HASH]
 
         self.assertEqual(encode_hex(st_hash), "0"*64)
@@ -280,7 +376,7 @@ class TestRealityCheck(TestCase):
         st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002, 4, 8, t.k3)
         st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001, 8, 16, t.k4)
 
-        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000)
+        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000)
 
         st['hash'].insert(0, self.rc0.questions(self.question_id)[QINDEX_HISTORY_HASH])
         st['addr'].insert(0, keys.privtoaddr(t.k4))
@@ -306,26 +402,35 @@ class TestRealityCheck(TestCase):
         self.rc0.claimWinnings(self.question_id, st['hash'][2:], st['addr'][2:], st['bond'][2:], st['answer'][2:], startgas=400000)
         self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k4)), 16+8+4+2+1000)
 
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_bond_claim_after_reveal_fail(self):
+        st = None
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  0,  1, t.k3, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001,  1,  2, t.k5, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1003,  2,  4, t.k4, False) 
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  4,  8, t.k6, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1004,  8, 16, t.k5, True)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002, 16, 32, t.k4, True)
+    
+        self.s.timestamp = self.s.timestamp + 11
+        self.rc0.claimWinnings(self.question_id, st['hash'], st['addr'], st['bond'], st['answer'], startgas=600000)
+        self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k6)), 32+16+8+4+2-1+1000)
+        self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k3)), 1+1)
 
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
     def test_bond_claim_split_over_transactions_payee_later(self):
-        # We can't create this state of affairs until we implement commit-reveal
-        return;
         st = None
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  0,  1, t.k3)
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001,  1,  2, t.k5)
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1003,  2,  4, t.k4) # should be a commit-and-reveal for this test
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  4,  8, t.k6)
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001,  8, 16, t.k5)
-        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002, 16, 32, t.k6)
-
-        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000)
-        self.arb0.submitAnswerByArbitrator(self.rc0.address, self.question_id, to_answer_for_contract(1003), keys.privtoaddr(t.k4), startgas=200000) 
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  0,  1, t.k3, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001,  1,  2, t.k5, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1003,  2,  4, t.k4, False) 
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002,  4,  8, t.k6, False)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1004,  8, 16, t.k5, True)
+        st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002, 16, 32, t.k4, True)
 
         self.s.timestamp = self.s.timestamp + 11
         self.rc0.claimWinnings(self.question_id, st['hash'][:2], st['addr'][:2], st['bond'][:2], st['answer'][:2], startgas=400000)
         self.rc0.claimWinnings(self.question_id, st['hash'][2:], st['addr'][2:], st['bond'][2:], st['answer'][2:], startgas=400000)
-        self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k4)), 32+16+8+4+2-1+1000)
+        self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k6)), 32+16+8+4+2-1+1000)
         self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k3)), 1+1)
 
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
@@ -374,8 +479,6 @@ class TestRealityCheck(TestCase):
         self.rc0.claimWinnings(self.question_id, st['hash'], st['addr'], st['bond'], st['answer'], startgas=400000)
         self.assertEqual(self.rc0.balanceOf(keys.privtoaddr(t.k3)), 1001)
 
-
-
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
     def test_answer_commit_expired(self):
         st = None
@@ -387,9 +490,6 @@ class TestRealityCheck(TestCase):
         with self.assertRaises(TransactionFailed):
             st = self.rc0.submitAnswerReveal( self.question_id, to_answer_for_contract(1002), nonce, 1, sender=t.k3)
 
-
-
-
     @unittest.skipIf(WORKING_ONLY, "Not under construction")
     def test_bond_claim_arbitration_existing_not_final(self):
         st = None
@@ -398,7 +498,7 @@ class TestRealityCheck(TestCase):
         st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1002, 4, 8, t.k3)
         st = self.submitAnswerReturnUpdatedState( st, self.question_id, 1001, 8, 16, t.k4)
 
-        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getFee(), startgas=200000)
+        self.arb0.requestArbitration(self.rc0.address, self.question_id, value=self.arb0.getDisputeFee(), startgas=200000)
 
         st['hash'].insert(0, self.rc0.questions(self.question_id)[QINDEX_HISTORY_HASH])
         st['addr'].insert(0, keys.privtoaddr(t.k3))
@@ -679,6 +779,52 @@ class TestRealityCheck(TestCase):
         self.assertEqual(ending_bal, starting_bal + starting_deposited - gas_used)
 
         return
+
+
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_arbitrator_fee_received(self):
+        self.assertEqual(self.rc0.balanceOf(self.arb0.address), 100)
+        
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_ask_question_gas(self):
+
+        self.c.mine()
+        self.s = self.c.head_state
+        self.assertEqual(self.s.gas_used, 0)
+
+        self.question_id = self.rc0.askQuestion(
+            0,
+            "my question 2",
+            self.arb0.address,
+            10,
+            0,
+            value=1100
+        )
+        gas_used = self.s.gas_used # Find out how much we used as this will affect the balance
+        #self.assertEqual(gas_used, 120000)
+        self.assertTrue(gas_used < 100000)
+    
+    @unittest.skipIf(WORKING_ONLY, "Not under construction")
+    def test_answer_question_gas(self):
+
+        self.c.mine()
+        self.s = self.c.head_state
+        self.assertEqual(self.s.gas_used, 0)
+
+        self.rc0.submitAnswer(self.question_id, to_answer_for_contract(12345), 0, value=1) 
+
+        gas_used = self.s.gas_used # Find out how much we used as this will affect the balance
+        #self.assertEqual(gas_used, 120000)
+        self.assertTrue(gas_used < 100000)
+
+        # NB The second answer should be cheaper than the first.
+        # This is what we want, because you may need to be able to get a challenge through at busy times
+
+        self.rc0.submitAnswer(self.question_id, to_answer_for_contract(12346), 0, value=2) 
+
+        gas_used = self.s.gas_used - gas_used
+        #self.assertEqual(gas_used, 120000)
+        self.assertTrue(gas_used < 52000)
 
 
 if __name__ == '__main__':

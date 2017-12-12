@@ -1,8 +1,9 @@
 pragma solidity ^0.4.6;
 
 contract RealityCheckAPI {
+    function setQuestionFee(uint256 fee);
     function finalizeByArbitrator(bytes32 question_id, bytes32 answer);
-    function submitAnswerByArbitrator(bytes32 question_id, bytes32 answer, address answerer) returns (bytes32);
+    function submitAnswerByArbitrator(bytes32 question_id, bytes32 answer, address answerer);
     function notifyOfArbitrationRequest(bytes32 question_id, address requester);
     function isFinalized(bytes32 question_id) returns (bool);
 }
@@ -15,6 +16,9 @@ contract Arbitrator {
 
     address owner;
     mapping(bytes32 => uint256) public arbitration_bounties;
+
+    uint256 question_fee;
+    uint256 dispute_fee;
 
     event LogRequestArbitration(
         bytes32 indexed question_id,
@@ -30,19 +34,29 @@ contract Arbitrator {
 
     function Arbitrator() {
         owner = msg.sender;
+        question_fee = 10000000000000000; // 0.001 ETH
+        dispute_fee = 10000000000000000; // 0.001 ETH
     }
 
-    function getFee(bytes32 question_id) constant returns (uint256) {
-        return 10000000000000000; // 0.001 ETH
+    function setDisputeFee(uint256 _fee) public onlyOwner {
+        dispute_fee = _fee;
+    }
+
+    function getDisputeFee(bytes32 question_id) constant returns (uint256) {
+        return dispute_fee;
+    }
+
+    function setQuestionFee(address realitycheck, uint256 _fee) public onlyOwner {
+        RealityCheckAPI(realitycheck).setQuestionFee(_fee);
     }
 
     function sendCallback(address realitycheck, bytes32 question_id, address client_ctrct, uint256 gas, uint256 min_bounty) onlyOwner {
         CallerBackerAPI(realitycheck).sendCallback(question_id, client_ctrct, gas, min_bounty);
     }
 
-    function submitAnswerByArbitrator(address realitycheck, bytes32 question_id, bytes32 answer, address answerer) onlyOwner returns (bytes32) {
+    function submitAnswerByArbitrator(address realitycheck, bytes32 question_id, bytes32 answer, address answerer) onlyOwner {
         delete arbitration_bounties[question_id];
-        return RealityCheckAPI(realitycheck).submitAnswerByArbitrator(question_id, answer, answerer);
+        RealityCheckAPI(realitycheck).submitAnswerByArbitrator(question_id, answer, answerer);
     }
 
     // Sends money to the arbitration bounty last_bond, returns true if enough was paid to trigger arbitration
@@ -51,7 +65,7 @@ contract Arbitrator {
         external
     payable returns (bool) {
 
-        uint256 arbitration_fee = getFee(question_id);
+        uint256 arbitration_fee = getDisputeFee(question_id);
 
         arbitration_bounties[question_id] += msg.value;
         uint256 paid = arbitration_bounties[question_id];

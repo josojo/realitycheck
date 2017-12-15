@@ -10,6 +10,11 @@ contract RealityCheck is BalanceHolder {
     using SafeMath for uint256;
     using SafeMath32 for uint32;
 
+    address constant NULL_ADDRESS = address(0);
+
+    // History hash when no history is created, or history has been cleared
+    bytes32 constant NULL_HASH = bytes32(0);
+
     // An unitinalized finalize_ts for a question will indicate an unanswered question.
     uint32 constant UNANSWERED = 0;
 
@@ -259,14 +264,21 @@ contract RealityCheck is BalanceHolder {
         // A timeout of 0 makes no sense, and we will use this to check existence
         require(timeout > 0); 
         require(timeout < 365 days); 
-        require(arbitrator != 0x0);
+        require(arbitrator != NULL_ADDRESS);
+
+        uint256 bounty = msg.value;
 
         // The arbitrator can set a fee for asking a question. 
         // This is intended as an anti-spam defence.
-        uint256 question_fee = arbitrator_question_fees[arbitrator];
-        require(msg.value >= question_fee); 
-        uint256 bounty = msg.value.sub(question_fee);
-        balanceOf[arbitrator] = balanceOf[arbitrator].add(question_fee);
+        // The fee is waived if the arbitrator is asking the question.
+        // This allows them to set an impossibly high fee and make users proxy the question through them.
+        // This would allow more sophisticated pricing, question whitelisting etc.
+        if (msg.sender != arbitrator) {
+            uint256 question_fee = arbitrator_question_fees[arbitrator];
+            require(bounty >= question_fee); 
+            bounty = bounty.sub(question_fee);
+            balanceOf[arbitrator] = balanceOf[arbitrator].add(question_fee);
+        }
 
         questions[question_id].content_hash = content_hash;
         questions[question_id].arbitrator = arbitrator;
@@ -317,7 +329,7 @@ contract RealityCheck is BalanceHolder {
     external payable {
 
         bytes32 commitment_id = keccak256(question_id, answer_hash, msg.value);
-        address answerer = (_answerer == 0x0) ? _answerer : msg.sender;
+        address answerer = (_answerer == NULL_ADDRESS) ? msg.sender : _answerer;
 
         require(commitments[commitment_id].reveal_ts == COMMITMENT_NON_EXISTENT);
 
@@ -401,7 +413,7 @@ contract RealityCheck is BalanceHolder {
         bondMustBeZero
     external {
 
-        require(answerer != 0x0);
+        require(answerer != NULL_ADDRESS);
         LogFinalize(question_id, answer);
 
         questions[question_id].is_pending_arbitration = false;
@@ -500,13 +512,13 @@ contract RealityCheck is BalanceHolder {
 
         }
  
-        if (last_history_hash != "") {
+        if (last_history_hash != NULL_HASH) {
             // We haven't yet got to the null hash (1st answer), ie the caller didn't supply the full answer chain.
             // Persist the details so we can pick up later where we left off later.
 
             // If we know who to pay we can go ahead and pay them out, only keeping back last_bond
             // (We always know who to pay unless all we saw were unrevealed commits)
-            if (payee != 0x0) {
+            if (payee != NULL_ADDRESS) {
                 _payPayee(question_id, payee, queued_funds);
                 queued_funds = 0;
             }
@@ -525,8 +537,7 @@ contract RealityCheck is BalanceHolder {
     }
 
     function _payPayee(bytes32 question_id, address payee, uint256 value) 
-    internal
-    {
+    internal {
         balanceOf[payee] = balanceOf[payee].add(value);
         LogClaim(question_id, payee, value);
     }
@@ -535,8 +546,7 @@ contract RealityCheck is BalanceHolder {
         bytes32 last_history_hash,
         bytes32 history_hash, bytes32 answer, uint256 bond, address addr
     )
-    internal pure returns (bool)
-    {
+    internal pure returns (bool) {
         if (last_history_hash == keccak256(history_hash, answer, bond, addr, true) ) {
             return true;
         }
@@ -551,8 +561,7 @@ contract RealityCheck is BalanceHolder {
         uint256 queued_funds, address payee, 
         address addr, uint256 bond, bytes32 answer, bool is_commitment
     )
-    internal returns (uint256, address)
-    {
+    internal returns (uint256, address) {
 
         // For commit-and-reveal, the answer history holds the commitment ID instead of the answer.
         // We look at the referenced commitment ID and switch in the actual answer.
@@ -570,7 +579,7 @@ contract RealityCheck is BalanceHolder {
 
         if (answer == best_answer) {
 
-            if (payee == 0x0) {
+            if (payee == NULL_ADDRESS) {
 
                 // The entry is for the first payee we come to, ie the winner.
                 // They get the question bounty.

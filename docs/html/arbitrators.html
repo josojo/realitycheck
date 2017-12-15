@@ -206,7 +206,7 @@
 <h2>Creating and using an arbitration contract<a class="headerlink" href="#creating-and-using-an-arbitration-contract" title="Permalink to this headline">¶</a></h2>
 <p>Arbitrator contracts should expose the following functions to users:</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">function</span> <span class="pre">getFee(bytes32</span> <span class="pre">question_id)</span> <span class="pre">constant</span> <span class="pre">returns</span> <span class="pre">(uint256)</span></code></li>
+<li><code class="docutils literal"><span class="pre">function</span> <span class="pre">getDisputeFee(bytes32</span> <span class="pre">question_id)</span> <span class="pre">constant</span> <span class="pre">returns</span> <span class="pre">(uint256)</span></code></li>
 <li><code class="docutils literal"><span class="pre">function</span> <span class="pre">requestArbitration(address</span> <span class="pre">realitycheck,</span> <span class="pre">bytes32</span> <span class="pre">question_id)</span></code></li>
 </ul>
 <p>When <code class="docutils literal"><span class="pre">requestArbitration()</span></code> is called with a sufficient fee, they should call the following against the Reality Check contract:</p>

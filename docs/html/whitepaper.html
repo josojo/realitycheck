@@ -311,7 +311,7 @@
 <div class="section" id="arbitration-mechanisms">
 <h2>Arbitration mechanisms<a class="headerlink" href="#arbitration-mechanisms" title="Permalink to this headline">¶</a></h2>
 <p>When they post bonds, users are ultimately betting that, in the event that the bonds are escalated to a high level and arbitration is requested, the arbitrator will decide in their favour. Reality Check does not solve the fundamental problem of getting true information on the blockchain (or at all); It instead passes the problem on to an arbitrator contract of the user’s choice. However, the system of escalating bonds should mean that the arbitration contract can use slow, expensive processes for arbitration, while preserving low costs and fast resolution times for the typical case, and passing the cost of arbitration onto “untruthful” participants.</p>
-<p>An arbitrator can be any contract that exposes a public method <code class="docutils literal"><span class="pre">getFee()</span></code> telling users the fee it charges for a particular question, and the ability to call <code class="docutils literal"><span class="pre">submitAnswerByArbitrator()</span></code> against the Reality Check contract to report the correct answer.</p>
+<p>An arbitrator can be any contract that exposes a public method <code class="docutils literal"><span class="pre">getDisputeFee()</span></code> telling users the fee it charges for a particular question, and the ability to call <code class="docutils literal"><span class="pre">submitAnswerByArbitrator()</span></code> against the Reality Check contract to report the correct answer.</p>
 <p>See <a class="reference internal" href="arbitrators.html"><span class="doc">Arbitrators</span></a> for suggested arbitration models.</p>
 </div>
 </div>

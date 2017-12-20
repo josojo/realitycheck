@@ -96,7 +96,6 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#asking-questions">Asking questions</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#accepting-an-answer-only-if-something-has-happened">Accepting an answer only if something has happened</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#getting-someone-else-to-ask-the-question-at-the-right-time">Getting someone else to ask the question at the right time</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#creating-templates">Creating templates</a></li>
@@ -263,47 +262,6 @@
 </pre></div>
 </td></tr></table></div>
 <p>You can then screen <code class="docutils literal"><span class="pre">answer</span></code> in your contract and only act on results that your contract is interested in.</p>
-</div>
-<div class="section" id="getting-someone-else-to-ask-the-question-at-the-right-time">
-<h3>Getting someone else to ask the question at the right time<a class="headerlink" href="#getting-someone-else-to-ask-the-question-at-the-right-time" title="Permalink to this headline">¶</a></h3>
-<p>You may also want to incentivize someone to ask the question at the appropriate time, post the initial answer with a sufficient bond, and (optionally) send the result to your contract.</p>
-<p>For these situations we provide a separate contract called a <cite>MetaQuestion</cite>.</p>
-<p>This allows you to say, “I will pay to get an answer to this question, with a minimum bond of x and timeout of y, but only once it has an answer in a particular range”.</p>
-<div class="highlight-javascript"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">askQuestion</span><span class="p">(</span>
-   <span class="nx">uint256</span> <span class="nx">template_id</span><span class="p">,</span>
-   <span class="nx">string</span> <span class="nx">question</span><span class="p">,</span>
-   <span class="nx">address</span> <span class="nx">arbitrator</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">timeout</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">min_bond</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">min_answer</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">max_answer</span><span class="p">,</span>
-   <span class="nx">uint256</span> <span class="nx">callback_gas</span>
-<span class="p">)</span>
-<span class="nx">returns</span> <span class="p">(</span><span class="nx">bytes32</span> <span class="nx">meta_question_id</span><span class="p">);</span>
-</pre></div>
-</td></tr></table></div>
-<p>The ETH you send with this call will be assigned as a reward to whoever asks the question, and supplies the first answer, along with a bond.</p>
-<p>This also includes a <code class="docutils literal"><span class="pre">callback_gas</span></code> parameter. If specified, this allows you to request that somebody calls your contract with the result, once it is known. It should specify the amount of gas required to call your contract with the result, and make it do whatever you need it to do.</p>
-<p>Your callback function should look like this:</p>
-<div class="highlight-javascript"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">__realitycheck_callback</span><span class="p">(</span>
-   <span class="nx">bytes32</span> <span class="nx">meta_question_id</span><span class="p">,</span>
-   <span class="nx">bytes32</span> <span class="nx">answer</span>
-<span class="p">)</span>
-</pre></div>
-</td></tr></table></div>
 </div>
 </div>
 <div class="section" id="creating-templates">

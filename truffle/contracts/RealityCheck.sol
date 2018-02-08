@@ -1,9 +1,10 @@
-pragma solidity 0.4.18;
+pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
 import './SafeMath32.sol';
 import './BalanceHolder.sol';
-import './RealityToekn.sol';
+import './RealityToken.sol';
+import './DataContract.sol';
 
 
 contract RealityCheck is BalanceHolder {
@@ -57,7 +58,9 @@ contract RealityCheck is BalanceHolder {
         bytes32 indexed question_id,
         uint256 bounty_added,
         uint256 bounty,
-        address indexed user 
+        address indexed user,
+        bytes32 branch
+
     );
 
     event LogNewAnswer(
@@ -92,7 +95,8 @@ contract RealityCheck is BalanceHolder {
     event LogClaim(
         bytes32 indexed question_id,
         address indexed user,
-        uint256 amount
+        uint256 amount,
+        bytes32 branch
     );
 
     struct Question {
@@ -107,7 +111,8 @@ contract RealityCheck is BalanceHolder {
         bytes32 history_hash;
         uint256 bond;
         bytes32 branch;
-        bytes32 realityWithdrawBranches[]
+        // branch => lastHashWithdrawn
+        bytes32[] realityWithdrawBranches;
     }
 
     // Stored in a mapping indexed by commitment_id, a hash of commitment hash, question, bond. 
@@ -123,15 +128,17 @@ contract RealityCheck is BalanceHolder {
         address payee;
         uint256 last_bond;
         uint256 queued_funds;
+        bytes32 history_hash;
     }
 
     uint256 nextTemplateID = 0;
     mapping(uint256 => uint256) public templates;
     mapping(bytes32 => Question) public questions;
-    mapping(bytes32 => Claim) question_claims;
+    mapping(bytes32 => mapping( bytes32 => Question)) public questions_branched;
+
+    mapping(bytes32 => mapping( bytes32 => Claim)) question_claims;
     mapping(bytes32 => Commitment) public commitments;
-    public uint arbitrator_question_fees; 
-    constant public uint realityArbitrationCost=10 *10 **18; 
+    uint public arbitrator_question_fees; 
 
 
     modifier onlyArbitrator(bytes32 question_id) {
@@ -221,7 +228,6 @@ contract RealityCheck is BalanceHolder {
     /// @dev Template data is only stored in the event logs, but its block number is kept in contract storage.
     /// @param content The template content
     /// @param question A string containing the parameters that will be passed into the template to make the question
-    /// @param arbitrator The arbitration contract that will have the final word on the answer if there is a dispute
     /// @param timeout How long the contract should wait after the answer is changed before finalizing on that answer
     /// @param opening_ts If set, the earliest time it should be possible to answer the question.
     /// @param nonce A user-specified nonce used in the question ID. Change it to repeat a question.
@@ -229,7 +235,6 @@ contract RealityCheck is BalanceHolder {
     function createTemplateAndAskQuestion(
         string content, 
         string question,
-        address arbitrator,
         uint32 timeout,
         uint32 opening_ts,
         uint256 nonce,
@@ -239,14 +244,13 @@ contract RealityCheck is BalanceHolder {
         // stateNotCreated is enforced by the internal _askQuestion
     public returns (bytes32) {
         uint256 template_id = createTemplate(content);
-        return askQuestion(template_id, question, arbitrator, timeout, opening_ts, nonce, amount, branch);
+        return askQuestion(template_id, question, timeout, opening_ts, nonce, amount, branch);
     }
 
     /// @notice Ask a new question and return the ID
     /// @dev Template data is only stored in the event logs, but its block number is kept in contract storage.
     /// @param template_id The ID number of the template the question will use
     /// @param question A string containing the parameters that will be passed into the template to make the question
-    /// @param arbitrator The arbitration contract that will have the final word on the answer if there is a dispute
     /// @param timeout How long the contract should wait after the answer is changed before finalizing on that answer
     /// @param opening_ts If set, the earliest time it should be possible to answer the question.
     /// @param nonce A user-specified nonce used in the question ID. Change it to repeat a question.
@@ -281,8 +285,7 @@ contract RealityCheck is BalanceHolder {
         // A timeout of 0 makes no sense, and we will use this to check existence
         require(timeout > 0); 
         require(timeout < 365 days); 
-        require(arbitrator != NULL_ADDRESS);
-        require(realityToken.transferFrom(msg.sender, this, amount, branch))
+        require(realityToken.transferFrom(msg.sender, this, amount, branch));
         uint bounty = amount;
         
         // The arbitrator can set a fee for asking a question. 
@@ -294,10 +297,8 @@ contract RealityCheck is BalanceHolder {
         uint256 question_fee = arbitrator_question_fees;
         require(bounty >= question_fee); 
         bounty = bounty.sub(question_fee);
-        balanceOf[branch][arbitrator] = balanceOf[branch][arbitrator].add(question_fee);
         
         questions[question_id].content_hash = content_hash;
-        questions[question_id].arbitrator = arbitrator;
         questions[question_id].opening_ts = opening_ts;
         questions[question_id].timeout = timeout;
         questions[question_id].bounty = bounty;
@@ -310,10 +311,10 @@ contract RealityCheck is BalanceHolder {
     function fundAnswerBounty(bytes32 question_id, uint amount, bytes32 content_hash, bytes32 branch) 
         stateOpen(question_id)
     external {
-        require(realityToken.transferFrom(msg.sender, this, amount, branch))
+        require(realityToken.transferFrom(msg.sender, this, amount, branch));
 
         questions[question_id].bounty = questions[question_id].bounty.add(amount);
-        LogFundAnswerBounty(question_id, amount, questions[question_id].bounty, msg.sender);
+        LogFundAnswerBounty(question_id, amount, questions[question_id].bounty, msg.sender, branch);
     }
 
     /// @notice Submit an answer for a question.
@@ -327,7 +328,7 @@ contract RealityCheck is BalanceHolder {
         bondMustDouble(question_id, amount)
         previousBondMustNotBeatMaxPrevious(question_id, max_previous)
     external{
-        require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch))
+        require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch));
         _addAnswerToHistory(question_id, answer, msg.sender, amount, false);
         _updateCurrentAnswer(question_id, answer, questions[question_id].timeout);
     }
@@ -341,15 +342,15 @@ contract RealityCheck is BalanceHolder {
     /// @param max_previous If specified, reverts if a bond higher than this was submitted after you sent your transaction.
     /// @param _answerer If specified, the address to be given as the question answerer. Defaults to the sender.
     /// @dev Specifying the answerer is useful if you want to delegate the commit-and-reveal to a third-party.
-    function submitAnswerCommitment(bytes32 question_id, bytes32 answer_hash, uint256 max_previous, address _answerer, uint amount) 
+    function submitAnswerCommitment(bytes32 question_id, bytes32 answer_hash, uint256 max_previous, address _answerer, uint bond) 
         stateOpen(question_id)
-        bondMustDouble(question_id, amount)
+        bondMustDouble(question_id, bond)
         previousBondMustNotBeatMaxPrevious(question_id, max_previous)
     external payable {
 
-        require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch))
+        require(realityToken.transferFrom(msg.sender, this, bond, questions[question_id].branch));
 
-        bytes32 commitment_id = keccak256(question_id, answer_hash, msg.value);
+        bytes32 commitment_id = keccak256(question_id, answer_hash, bond);
         address answerer = (_answerer == NULL_ADDRESS) ? msg.sender : _answerer;
 
         require(commitments[commitment_id].reveal_ts == COMMITMENT_NON_EXISTENT);
@@ -357,7 +358,7 @@ contract RealityCheck is BalanceHolder {
         uint32 commitment_timeout = questions[question_id].timeout / COMMITMENT_TIMEOUT_RATIO;
         commitments[commitment_id].reveal_ts = uint32(now).add(commitment_timeout);
 
-        _addAnswerToHistory(question_id, commitment_id, answerer, msg.value, true);
+        _addAnswerToHistory(question_id, commitment_id, answerer, bond, true);
 
     }
 
@@ -415,7 +416,7 @@ contract RealityCheck is BalanceHolder {
     function notifyOfArbitrationRequest(bytes32 question_id, address requester) 
         stateOpen(question_id)
     external {
-        require( questions[question_id].bond > realityArbitrationCost )
+        require( realityToken.transferFrom(msg.sender, this, realityToken.realityArbitrationCost(questions[question_id].branch), questions[question_id].branch));
         questions[question_id].is_pending_arbitration = true;
         LogNotifyOfArbitrationRequest(question_id, requester);
     }
@@ -435,13 +436,14 @@ contract RealityCheck is BalanceHolder {
     /// @param question_id The ID of the question
     /// @return The answer formatted as a bytes32
     function getFinalAnswer(bytes32 question_id, bytes32 branch) 
-    external constant returns (bytes32) {
-        if(questions[question_id].is_pending_arbitration)
-            return realityToken.getAnswer(branch, question_id);
-        uint32 finalize_ts = questions[question_id].finalize_ts;
-    
-        if((finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now))
-            return questions[question_id].best_answer;
+    public constant returns (bytes32 best_answer) {
+        if(isFinalized(question_id)){
+            best_answer = questions[question_id].best_answer;
+        } else {
+                address dataContract = realityToken.getDataContract(branch);
+                best_answer = DataContract(dataContract).getAnswer(question_id);
+                require(best_answer != 0);
+        }
     }
 
     /// @notice Return the final answer to the specified question, provided it matches the specified criteria.
@@ -465,7 +467,7 @@ contract RealityCheck is BalanceHolder {
         return questions[question_id].best_answer;
     }
 
-    /// @notice Assigns the winnings (bounty and bonds) to everyone who gave the accepted answer, if no arbitration was needed
+    /// @notice Assigns the winnings (bounty and bonds) to everyone who gave the accepted answer
     /// Caller must provide the answer history, in reverse order
     /// @dev Works up the chain and assign bonds to the person who gave the right answer
     /// If someone gave the winning answer earlier, they must get paid from the higher bond
@@ -481,113 +483,39 @@ contract RealityCheck is BalanceHolder {
     /// @param answers Last-to-first, each answer supplied, or commitment ID if the answer was supplied with commit->reveal
     function claimWinnings(
         bytes32 question_id, 
-        bytes32[] history_hashes, address[] addrs, uint256[] bonds, bytes32[] answers
-    ) 
-        stateFinalized(question_id)
-    public {
-
-        require(history_hashes.length > 0);
-
-        // These are only set if we split our claim over multiple transactions.
-        address payee = question_claims[question_id].payee; 
-        uint256 last_bond = question_claims[question_id].last_bond; 
-        uint256 queued_funds = question_claims[question_id].queued_funds; 
-
-        // Starts as the hash of the final answer submitted. It'll be cleared when we're done.
-        // If we're splitting the claim over multiple transactions, it'll be the hash where we left off last time
-        bytes32 last_history_hash = questions[question_id].history_hash;
-
-        bytes32 best_answer = questions[question_id].best_answer;
-
-        uint256 i;
-        for (i = 0; i < history_hashes.length; i++) {
-        
-            // Check input against the history hash, and see which of 2 possible values of is_commitment fits.
-            bool is_commitment = _verifyHistoryInputOrRevert(last_history_hash, history_hashes[i], answers[i], bonds[i], addrs[i]);
-            
-            queued_funds = queued_funds.add(last_bond); 
-            (queued_funds, payee) = _processHistoryItem(
-                question_id, best_answer, queued_funds, payee, 
-                addrs[i], bonds[i], answers[i], is_commitment);
- 
-            // Line the bond up for next time, when it will be added to somebody's queued_funds
-            last_bond = bonds[i];
-            last_history_hash = history_hashes[i];
-
-        }
- 
-        if (last_history_hash != NULL_HASH) {
-            // We haven't yet got to the null hash (1st answer), ie the caller didn't supply the full answer chain.
-            // Persist the details so we can pick up later where we left off later.
-
-            // If we know who to pay we can go ahead and pay them out, only keeping back last_bond
-            // (We always know who to pay unless all we saw were unrevealed commits)
-            if (payee != NULL_ADDRESS) {
-                _payPayee(question_id, payee, queued_funds);
-                queued_funds = 0;
-            }
-
-            question_claims[question_id].payee = payee;
-            question_claims[question_id].last_bond = last_bond;
-            question_claims[question_id].queued_funds = queued_funds;
-        } else {
-            // There is nothing left below us so the payee can keep what remains
-            _payPayee(question_id, payee, queued_funds.add(last_bond));
-            delete question_claims[question_id];
-        }
-
-        questions[question_id].history_hash = last_history_hash;
-
-    }
-
-    /// @notice Assigns the winnings (bounty and bonds) to everyone who gave the accepted answer
-    /// Caller must provide the answer history, in reverse order
-    /// @dev Works up the chain and assign bonds to the person who gave the right answer
-    /// If someone gave the winning answer earlier, they must get paid from the higher bond
-    /// That means we can't pay out the bond added at n until we have looked at n-1
-    /// The first answer is authenticated by checking against the stored history_hash.
-    /// One of the inputs to history_hash is the history_hash before it, so we use that to authenticate the next entry, etc
-    /// Once we get to a null hash we'll know we're done and there are no more answers.
-    /// Usually you would call the whole thing in a single transaction, but if not then the data is persisted to pick up later.
-    /// @param question_id The ID of the question
-    /// @param history_hashes Second-last-to-first, the hash of each history entry. (Final one should be empty).
-    /// @param addrs Last-to-first, the address of each answerer or commitment sender
-    /// @param bonds Last-to-first, the bond supplied with each answer or commitment
-    /// @param answers Last-to-first, each answer supplied, or commitment ID if the answer was supplied with commit->reveal
-    function claimWinningsOnBranch(
-        bytes32 question_id, 
         bytes32[] history_hashes,
         address[] addrs,
         uint256[] bonds,
         bytes32[] answers,
+        bytes32 branchFromPreviousWithdraw,
         bytes32 branchForWithdraw
     ) 
-        stateFinalized(question_id)
     public {
 
         require(history_hashes.length > 0);
-        require(eligibleBranchForWithdraw(branchForWithdraw, questions[questions_id][branch].branch, questions[questions_id].realityWithdrawBranches));
-        // These are only set if we split our claim over multiple transactions.
-        if(questions[questions_id][branch].payee == address(0))
-            questions[questions_id][branch].payee = questions[question_id].payee; 
-        if(questions[questions_id][branch].last_bond == 0)
-            questions[questions_id][branch].last_bond = questions[question_id].last_bond; 
-        if(questions[questions_id][branch].queued_funds == 0)
-            questions[questions_id][branch].queued_funds = questions[question_id].queued_funds; 
+        //checks the eligibility of a branch for withdraw
+        require(eligibleBranchForWithdraw(branchForWithdraw, branchFromPreviousWithdraw, questions[question_id].branch, questions[question_id].realityWithdrawBranches));
         
-        address payee = question_claims[question_id][branch].payee; 
-        uint256 last_bond = question_claims[question_id][branch].last_bond; 
-        uint256 queued_funds = question_claims[question_id][branch].queued_funds; 
+        // in the first run-through, we need to add the new branch to the tracked branchFromQuestion
+        // inorder to prevent double withdraws.
+        if(branchFromPreviousWithdraw != branchForWithdraw)
+           questions[question_id].realityWithdrawBranches.push(branchForWithdraw);         
+        
+        // These are only set if we split our claim over multiple transactions.
+        
+        address payee = question_claims[question_id][branchFromPreviousWithdraw].payee; 
+        uint256 last_bond = question_claims[question_id][branchFromPreviousWithdraw].last_bond; 
+        uint256 queued_funds = question_claims[question_id][branchFromPreviousWithdraw].queued_funds; 
+        bytes32 last_history_hash;
 
-        // Starts as the hash of the final answer submitted. It'll be cleared when we're done.
-        // If we're splitting the claim over multiple transactions, it'll be the hash where we left off last time
-        if(questions[questions_id][branch].history_hash == bytes32(0))
-            questions[questions_id][branch].history_hash = questions[question_id].history_hash; 
-        bytes32 last_history_hash = questions[question_id][branch].history_hash;
-
-        address dataContract = realityToken.getDataContract(branchForWithdraw);
-        bytes32 best_answer = dataContract.getAnswer(question_id);
-
+        if(branchFromPreviousWithdraw == 0)
+            last_history_hash = questions[question_id].history_hash;
+        else 
+            last_history_hash = question_claims[question_id][branchFromPreviousWithdraw].history_hash;
+            
+        bytes32 best_answer = getFinalAnswer(question_id, branchForWithdraw);
+        
+            
         uint256 i;
         for (i = 0; i < history_hashes.length; i++) {
         
@@ -597,7 +525,7 @@ contract RealityCheck is BalanceHolder {
             queued_funds = queued_funds.add(last_bond); 
             (queued_funds, payee) = _processHistoryItem(
                 question_id, best_answer, queued_funds, payee, 
-                addrs[i], bonds[i], answers[i], is_commitment);
+                addrs[i], bonds[i], answers[i], is_commitment, branchForWithdraw);
  
             // Line the bond up for next time, when it will be added to somebody's queued_funds
             last_bond = bonds[i];
@@ -612,40 +540,41 @@ contract RealityCheck is BalanceHolder {
             // If we know who to pay we can go ahead and pay them out, only keeping back last_bond
             // (We always know who to pay unless all we saw were unrevealed commits)
             if (payee != NULL_ADDRESS) {
-                _payPayee(question_id, payee, queued_funds);
+                _payPayee(question_id, payee, queued_funds, branchForWithdraw);
                 queued_funds = 0;
             }
 
-            question_claims[question_id].payee = payee;
-            question_claims[question_id].last_bond = last_bond;
-            question_claims[question_id].queued_funds = queued_funds;
+            question_claims[question_id][branchForWithdraw].payee = payee;
+            question_claims[question_id][branchForWithdraw].last_bond = last_bond;
+            question_claims[question_id][branchForWithdraw].queued_funds = queued_funds;
         } else {
             // There is nothing left below us so the payee can keep what remains
-            _payPayee(question_id, payee, queued_funds.add(last_bond));
-            delete question_claims[question_id];
+            _payPayee(question_id, payee, queued_funds.add(last_bond), branchForWithdraw);
+            delete question_claims[question_id][branchForWithdraw];
         }
 
-        questions[question_id].history_hash = last_history_hash;
+        question_claims[question_id][branchForWithdraw].history_hash = last_history_hash;
 
     }
 
-    function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromQuestion, bytes32 alreadyUsedBranches[])
-    public view returns(bool)
+    // @dev: this function checks whether a branch is eligigble for a withdraw. 
+    // if a withdraw was already made on a newer childbranch of branchForWithdraw, it will return false
+    // if there is a closer parentbranch that the branchFromPreviousWithdraw we throw as well
+    function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 branchFromQuestion, bytes32 [] alreadyUsedBranches)
+    public view returns(bool isEligible)
     {
-        for(uint i=0;i < alreadyUsedBranches.length;i++){
-            if(alreadyUsedBranches[i] == branch)
-                return true;
+        for(uint i=0;i < alreadyUsedBranches.length;i++) {
             if(realityToken.isBranchInBetweenBranches(branchForWithdraw, branchFromQuestion, alreadyUsedBranches[i]))
                 return false;
-            if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromQuestion, branchForWithdraw))
+            if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
                 return false;   
         }
     }
 
-    function _payPayee(bytes32 question_id, address payee, uint256 value) 
+    function _payPayee(bytes32 question_id, address payee, uint256 value, bytes32 branchForWithdraw) 
     internal {
-        balanceOf[payee] = balanceOf[payee].add(value);
-        LogClaim(question_id, payee, value);
+        require(realityToken.transfer(payee, value, branchForWithdraw));
+        LogClaim(question_id, payee, value, branchForWithdraw);
     }
 
     function _verifyHistoryInputOrRevert(
@@ -665,7 +594,8 @@ contract RealityCheck is BalanceHolder {
     function _processHistoryItem(
         bytes32 question_id, bytes32 best_answer, 
         uint256 queued_funds, address payee, 
-        address addr, uint256 bond, bytes32 answer, bool is_commitment
+        address addr, uint256 bond, bytes32 answer,
+        bool is_commitment, bytes32 branchForWithdraw
     )
     internal returns (uint256, address) {
 
@@ -675,11 +605,9 @@ contract RealityCheck is BalanceHolder {
             bytes32 commitment_id = answer;
             // If it's a commit but it hasn't been revealed, it will always be considered wrong.
             if (!commitments[commitment_id].is_revealed) {
-                delete commitments[commitment_id];
                 return (queued_funds, payee);
             } else {
                 answer = commitments[commitment_id].revealed_answer;
-                delete commitments[commitment_id];
             }
         }
 
@@ -691,8 +619,7 @@ contract RealityCheck is BalanceHolder {
                 // They get the question bounty.
                 payee = addr;
                 queued_funds = queued_funds.add(questions[question_id].bounty);
-                questions[question_id].bounty = 0;
-
+                
             } else if (addr != payee) {
 
                 // Answerer has changed, ie we found someone lower down who needs to be paid
@@ -706,7 +633,7 @@ contract RealityCheck is BalanceHolder {
                 uint256 answer_takeover_fee = (queued_funds >= bond) ? bond : queued_funds;
 
                 // Settle up with the old (higher-bonded) payee
-                _payPayee(question_id, payee, queued_funds.sub(answer_takeover_fee));
+                _payPayee(question_id, payee, queued_funds.sub(answer_takeover_fee), branchForWithdraw);
 
                 // Now start queued_funds again for the new (lower-bonded) payee
                 payee = addr;
@@ -720,41 +647,4 @@ contract RealityCheck is BalanceHolder {
 
     }
 
-    /// @notice Convenience function to assign bounties/bonds for multiple questions in one go, then withdraw all your funds.
-    /// Caller must provide the answer history for each question, in reverse order
-    /// @dev Can be called by anyone to assign bonds/bounties, but funds are only withdrawn for the user making the call.
-    /// @param question_ids The IDs of the questions you want to claim for
-    /// @param lengths The number of history entries you will supply for each question ID
-    /// @param hist_hashes In a single list for all supplied questions, the hash of each history entry.
-    /// @param addrs In a single list for all supplied questions, the address of each answerer or commitment sender
-    /// @param bonds In a single list for all supplied questions, the bond supplied with each answer or commitment
-    /// @param answers In a single list for all supplied questions, each answer supplied, or commitment ID 
-    function claimMultipleAndWithdrawBalance(
-        bytes32[] question_ids, uint256[] lengths, 
-        bytes32[] hist_hashes, address[] addrs, uint256[] bonds, bytes32[] answers
-    ) 
-        stateAny() // The finalization checks are done in the claimWinnings function
-    public {
-        
-        uint256 qi;
-        uint256 i;
-        for (qi = 0; qi < question_ids.length; qi++) {
-            bytes32 qid = question_ids[qi];
-            uint256 ln = lengths[qi];
-            bytes32[] memory hh = new bytes32[](ln);
-            address[] memory ad = new address[](ln);
-            uint256[] memory bo = new uint256[](ln);
-            bytes32[] memory an = new bytes32[](ln);
-            uint256 j;
-            for (j = 0; j < ln; j++) {
-                hh[j] = hist_hashes[i];
-                ad[j] = addrs[i];
-                bo[j] = bonds[i];
-                an[j] = answers[i];
-                i++;
-            }
-            claimWinnings(qid, hh, ad, bo, an);
-        }
-        withdraw();
-    }
 }

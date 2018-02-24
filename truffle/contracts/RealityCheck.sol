@@ -158,10 +158,10 @@ contract RealityCheck is BalanceHolder {
     modifier stateOpen(bytes32 question_id) {
         require(questions[question_id].timeout > 0); // Check existence
         require(!questions[question_id].is_pending_arbitration);
-        uint32 finalize_ts = questions[question_id].finalize_ts;
-        require(finalize_ts == UNANSWERED || finalize_ts > uint32(now));
-        uint32 opening_ts = questions[question_id].opening_ts;
-        require(opening_ts == 0 || opening_ts <= uint32(now)); 
+        // TODO :uint32 finalize_ts = ;
+        require(questions[question_id].finalize_ts == UNANSWERED || questions[question_id].finalize_ts > uint32(now));
+        // TODO opening_ts =
+        require(questions[question_id].opening_ts == 0 || questions[question_id].opening_ts <= uint32(now)); 
         _;
     }
 
@@ -342,23 +342,19 @@ contract RealityCheck is BalanceHolder {
     /// @param max_previous If specified, reverts if a bond higher than this was submitted after you sent your transaction.
     /// @param _answerer If specified, the address to be given as the question answerer. Defaults to the sender.
     /// @dev Specifying the answerer is useful if you want to delegate the commit-and-reveal to a third-party.
-    function submitAnswerCommitment(bytes32 question_id, bytes32 answer_hash, uint256 max_previous, address _answerer, uint bond) 
+    function submitAnswerCommitment(bytes32 question_id, bytes32 answer_hash, uint bond, uint256 max_previous, address _answerer) 
         stateOpen(question_id)
         bondMustDouble(question_id, bond)
-        previousBondMustNotBeatMaxPrevious(question_id, max_previous)
+        //previousBondMustNotBeatMaxPrevious(question_id, max_previous)
     external payable {
-
         require(realityToken.transferFrom(msg.sender, this, bond, questions[question_id].branch));
 
         bytes32 commitment_id = keccak256(question_id, answer_hash, bond);
-        address answerer = (_answerer == NULL_ADDRESS) ? msg.sender : _answerer;
 
         require(commitments[commitment_id].reveal_ts == COMMITMENT_NON_EXISTENT);
+        commitments[commitment_id].reveal_ts = uint32(now).add(questions[question_id].timeout / COMMITMENT_TIMEOUT_RATIO);
 
-        uint32 commitment_timeout = questions[question_id].timeout / COMMITMENT_TIMEOUT_RATIO;
-        commitments[commitment_id].reveal_ts = uint32(now).add(commitment_timeout);
-
-        _addAnswerToHistory(question_id, commitment_id, answerer, bond, true);
+        _addAnswerToHistory(question_id, commitment_id, ((_answerer == NULL_ADDRESS) ? msg.sender : _answerer), bond, true);
 
     }
 
@@ -412,13 +408,12 @@ contract RealityCheck is BalanceHolder {
     /// @notice Notify the contract that the minimal threshold for the realityToken to make a decision was reached
     /// @dev anyone can call this and request an arbitration from realityToken, if threshold of escalation is reached
     /// @param question_id The ID of the question
-    /// @param requester The account that requested arbitration
-    function notifyOfArbitrationRequest(bytes32 question_id, address requester) 
+    function notifyOfArbitrationRequest(bytes32 question_id) 
         stateOpen(question_id)
     external {
-        require( realityToken.transferFrom(msg.sender, this, realityToken.realityArbitrationCost(questions[question_id].branch), questions[question_id].branch));
+        require( realityToken.transferFrom(msg.sender, this, realityToken.getRealityArbitrationCosts(questions[question_id].branch), questions[question_id].branch));
         questions[question_id].is_pending_arbitration = true;
-        LogNotifyOfArbitrationRequest(question_id, requester);
+        LogNotifyOfArbitrationRequest(question_id, msg.sender);
     }
 
     
@@ -435,14 +430,13 @@ contract RealityCheck is BalanceHolder {
     /// @notice Return the final answer to the specified question, or revert if there isn't one
     /// @param question_id The ID of the question
     /// @return The answer formatted as a bytes32
-    function getFinalAnswer(bytes32 question_id, bytes32 branch) 
+    function getFinalAnswer( bytes32 branch, bytes32 question_id) 
     public constant returns (bytes32 best_answer) {
         if(isFinalized(question_id)){
             best_answer = questions[question_id].best_answer;
         } else {
                 address dataContract = realityToken.getDataContract(branch);
                 best_answer = DataContract(dataContract).getAnswer(question_id);
-                require(best_answer != 0);
         }
     }
 
@@ -466,7 +460,6 @@ contract RealityCheck is BalanceHolder {
         require(min_bond <= questions[question_id].bond);
         return questions[question_id].best_answer;
     }
-
     /// @notice Assigns the winnings (bounty and bonds) to everyone who gave the accepted answer
     /// Caller must provide the answer history, in reverse order
     /// @dev Works up the chain and assign bonds to the person who gave the right answer
@@ -482,57 +475,51 @@ contract RealityCheck is BalanceHolder {
     /// @param bonds Last-to-first, the bond supplied with each answer or commitment
     /// @param answers Last-to-first, each answer supplied, or commitment ID if the answer was supplied with commit->reveal
     function claimWinnings(
+        bytes32 branchForWithdraw,
+        bytes32 branchFromPreviousWithdraw,
         bytes32 question_id, 
         bytes32[] history_hashes,
         address[] addrs,
         uint256[] bonds,
-        bytes32[] answers,
-        bytes32 branchFromPreviousWithdraw,
-        bytes32 branchForWithdraw
+        bytes32[] answers
     ) 
     public {
 
         require(history_hashes.length > 0);
         //checks the eligibility of a branch for withdraw
-        require(eligibleBranchForWithdraw(branchForWithdraw, branchFromPreviousWithdraw, questions[question_id].branch, questions[question_id].realityWithdrawBranches));
+        require(eligibleBranchForWithdraw(branchForWithdraw, branchFromPreviousWithdraw, question_id));
         
         // in the first run-through, we need to add the new branch to the tracked branchFromQuestion
         // inorder to prevent double withdraws.
-        if(branchFromPreviousWithdraw != branchForWithdraw)
-           questions[question_id].realityWithdrawBranches.push(branchForWithdraw);         
         
-        // These are only set if we split our claim over multiple transactions.
-        
+        _setBranchInWithdrawHistory(branchForWithdraw, branchFromPreviousWithdraw, question_id);
+        uint256 queued_funds = question_claims[question_id][branchFromPreviousWithdraw].queued_funds;
         address payee = question_claims[question_id][branchFromPreviousWithdraw].payee; 
+         
+        // These are only set if we split our claim over multiple transactions.
         uint256 last_bond = question_claims[question_id][branchFromPreviousWithdraw].last_bond; 
-        uint256 queued_funds = question_claims[question_id][branchFromPreviousWithdraw].queued_funds; 
+            
         bytes32 last_history_hash;
-
-        if(branchFromPreviousWithdraw == 0)
+        if (branchFromPreviousWithdraw == bytes32(0))
             last_history_hash = questions[question_id].history_hash;
         else 
             last_history_hash = question_claims[question_id][branchFromPreviousWithdraw].history_hash;
-            
-        bytes32 best_answer = getFinalAnswer(question_id, branchForWithdraw);
-        
-            
         uint256 i;
         for (i = 0; i < history_hashes.length; i++) {
-        
-            // Check input against the history hash, and see which of 2 possible values of is_commitment fits.
-            bool is_commitment = _verifyHistoryInputOrRevert(last_history_hash, history_hashes[i], answers[i], bonds[i], addrs[i]);
             
-            queued_funds = queued_funds.add(last_bond); 
-            (queued_funds, payee) = _processHistoryItem(
-                question_id, best_answer, queued_funds, payee, 
-                addrs[i], bonds[i], answers[i], is_commitment, branchForWithdraw);
- 
+            // Check input against the history hash, and see which of 2 possible values of is_commitment fits.
+            bool is_commitment =_verifyHistoryInputOrRevert(history_hashes[i], addrs[i], bonds[i], answers[i], last_history_hash);
+            
+             queued_funds = queued_funds.add(last_bond); 
+               (queued_funds, payee) = _processHistoryItem(branchForWithdraw,
+                    question_id, queued_funds, payee, 
+                   addrs[i], bonds[i], answers[i], is_commitment);
+
             // Line the bond up for next time, when it will be added to somebody's queued_funds
             last_bond = bonds[i];
             last_history_hash = history_hashes[i];
 
         }
- 
         if (last_history_hash != NULL_HASH) {
             // We haven't yet got to the null hash (1st answer), ie the caller didn't supply the full answer chain.
             // Persist the details so we can pick up later where we left off later.
@@ -540,19 +527,18 @@ contract RealityCheck is BalanceHolder {
             // If we know who to pay we can go ahead and pay them out, only keeping back last_bond
             // (We always know who to pay unless all we saw were unrevealed commits)
             if (payee != NULL_ADDRESS) {
-                _payPayee(question_id, payee, queued_funds, branchForWithdraw);
+                _payPayee   (branchForWithdraw, question_id,  queued_funds, payee);
                 queued_funds = 0;
             }
-
+            question_claims[question_id][branchForWithdraw].queued_funds = queued_funds;
             question_claims[question_id][branchForWithdraw].payee = payee;
             question_claims[question_id][branchForWithdraw].last_bond = last_bond;
-            question_claims[question_id][branchForWithdraw].queued_funds = queued_funds;
         } else {
             // There is nothing left below us so the payee can keep what remains
-            _payPayee(question_id, payee, queued_funds.add(last_bond), branchForWithdraw);
+            _payPayee(branchForWithdraw, question_id, queued_funds.add(last_bond), payee);
             delete question_claims[question_id][branchForWithdraw];
         }
-
+ 
         question_claims[question_id][branchForWithdraw].history_hash = last_history_hash;
 
     }
@@ -560,28 +546,48 @@ contract RealityCheck is BalanceHolder {
     // @dev: this function checks whether a branch is eligigble for a withdraw. 
     // if a withdraw was already made on a newer childbranch of branchForWithdraw, it will return false
     // if there is a closer parentbranch that the branchFromPreviousWithdraw we throw as well
-    function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 branchFromQuestion, bytes32 [] alreadyUsedBranches)
-    public view returns(bool isEligible)
+    function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 question_id)
+    public view returns(bool)
     {
+        bytes32 branchFromQuestion = questions[question_id].branch;
+        bytes32 [] alreadyUsedBranches = questions[question_id].realityWithdrawBranches;
+        // check that tokens were not yet withdrawn in inbetween branches
         for(uint i=0;i < alreadyUsedBranches.length;i++) {
             if(realityToken.isBranchInBetweenBranches(branchForWithdraw, branchFromQuestion, alreadyUsedBranches[i]))
                 return false;
+            if(branchFromPreviousWithdraw!=bytes32(0)){    
             if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
-                return false;   
+                return false;   }
         }
+        // check that tokens will be withdrawn on a child branch of branch of question
+        bytes32 branchParent = branchForWithdraw;
+        while(branchParent != questions[question_id].branch){
+            branchParent = realityToken.getParentBranch(branchParent);
+            if(branchParent == bytes32(0))
+                return false;
+        }
+        return true;
     }
 
-    function _payPayee(bytes32 question_id, address payee, uint256 value, bytes32 branchForWithdraw) 
+    function _setBranchInWithdrawHistory(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 question_id)
+    internal
+    {
+        if(branchFromPreviousWithdraw != branchForWithdraw)
+           questions[question_id].realityWithdrawBranches.push(branchForWithdraw);         
+        
+    }
+
+
+    function _payPayee(bytes32 branchForWithdraw, bytes32 question_id,  uint256 value, address payee) 
     internal {
         require(realityToken.transfer(payee, value, branchForWithdraw));
         LogClaim(question_id, payee, value, branchForWithdraw);
     }
-
     function _verifyHistoryInputOrRevert(
-        bytes32 last_history_hash,
-        bytes32 history_hash, bytes32 answer, uint256 bond, address addr
+        bytes32 history_hash, address addr, uint256 bond, bytes32 answer,
+        bytes32 last_history_hash
     )
-    internal pure returns (bool) {
+    internal  returns (bool) {
         if (last_history_hash == keccak256(history_hash, answer, bond, addr, true) ) {
             return true;
         }
@@ -591,14 +597,14 @@ contract RealityCheck is BalanceHolder {
         revert();
     }
 
-    function _processHistoryItem(
-        bytes32 question_id, bytes32 best_answer, 
+    function _processHistoryItem( bytes32 branchForWithdraw,
+        bytes32 question_id, 
         uint256 queued_funds, address payee, 
         address addr, uint256 bond, bytes32 answer,
-        bool is_commitment, bytes32 branchForWithdraw
+        bool is_commitment
     )
     internal returns (uint256, address) {
-
+        bytes32 best_answer = getFinalAnswer(branchForWithdraw, question_id);
         // For commit-and-reveal, the answer history holds the commitment ID instead of the answer.
         // We look at the referenced commitment ID and switch in the actual answer.
         if (is_commitment) {
@@ -633,7 +639,7 @@ contract RealityCheck is BalanceHolder {
                 uint256 answer_takeover_fee = (queued_funds >= bond) ? bond : queued_funds;
 
                 // Settle up with the old (higher-bonded) payee
-                _payPayee(question_id, payee, queued_funds.sub(answer_takeover_fee), branchForWithdraw);
+                _payPayee(branchForWithdraw, question_id, queued_funds.sub(answer_takeover_fee), payee);
 
                 // Now start queued_funds again for the new (lower-bonded) payee
                 payee = addr;

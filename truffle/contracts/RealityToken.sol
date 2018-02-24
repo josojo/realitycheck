@@ -1,6 +1,11 @@
 pragma solidity ^0.4.18;
 
+import './SafeMath.sol';
+import './DataContract.sol';
+
 contract RealityToken {
+
+    using SafeMath for uint256;
 
     event Approval(address indexed _owner, address indexed _spender, uint _value, bytes32 branch);
     event Transfer(address indexed _from, address indexed _to, uint _value, bytes32 branch);
@@ -27,49 +32,50 @@ contract RealityToken {
     // Spends, which may cause debits, can only go forwards.
     // That way when we check if you have enough to spend we only have to go backwards.
     mapping(address => uint256) public last_debit_windows; // index of last user debits to stop you going backwards
+    // index to easily get all branch hashes for a window
+    mapping(uint256 => bytes32[]) public window_branches; 
+    // 00:00:00 UTC on the day the contract was mined
+    uint256 public genesis_window_timestamp; 
 
-    mapping(uint256 => bytes32[]) public window_branches; // index to easily get all branch hashes for a window
-    uint256 public genesis_window_timestamp; // 00:00:00 UTC on the day the contract was mined
-
+    // allowanceFrom => allowanceTo => onBranch => amount
     mapping(address => mapping(address => mapping(bytes32=> uint256))) allowed;
 
-
-    // this is the cost for the system to make a arbitration and including an answers to the a new branch.
-    // this parameter needs to be maintained by realityTokenholders. Maybe via a futarchy process
-    // TODO implement simiple futarchy with realityCheck.
-    // branch => costs
-    mapping (bytes32 => uint) public realityArbitrationCost;  
-
-    // this should be a tokenCurated list of supported Dapps, which are allowed to make arbitration requests to 
-    // the realityCoin
-    // TODO implement a TokenCuratedList adding and deleting process.
-    // branch => array of Dapps
-    mapping(bytes32 => address []) public supportedDapps;
-
-
-
-    function RealityToken(address initalDistribution)
+    bytes32 public genesis_branch;
+    function RealityToken(address initalDistribution, address initialDataContract)
     public {
         genesis_window_timestamp = now - (now % 86400);
         bytes32 genesis_merkle_root = keccak256("I leave to several futures (not to all) my garden of forking paths");
         bytes32 genesis_branch_hash = keccak256(NULL_HASH, genesis_merkle_root, NULL_ADDRESS);
-        branches[genesis_branch_hash] = Branch(NULL_HASH, genesis_merkle_root, NULL_ADDRESS, now, 0);
-        branches[genesis_branch_hash].balance_change[initalDistribution] = 2100000000000000;
-        realityArbitrationCost[genesis_branch_hash] = 10 * 10 ** 18;
+        branches[genesis_branch_hash] = Branch(NULL_HASH, genesis_merkle_root, initialDataContract, now, 0);
+        branches[genesis_branch_hash].balance_change[initalDistribution] = 210000000000000000000000000 ;
         window_branches[0].push(genesis_branch_hash);
+        genesis_branch = genesis_branch_hash;
     }
 
-    function getRealityArbitrationCosts(bytes32 hash) public returns(uint){
-        if(hash == bytes32(0)){
-            return 0;
+    // arbitrationCosts are managed via subjectiviocracy and the DataContract. 
+    // An update of the charged arbitration costs will first undergo a informal process of finding consensus within the community and then get included into
+    // the next AnswerContract. 
+    function getRealityArbitrationCosts(bytes32 hash) public view returns(uint arbitrationCost){
+        while(arbitrationCost == 0)
+        {
+            arbitrationCost = DataContract(branches[hash].data_cntrct).realityArbitrationCost();
+            hash = branches[hash].parent_hash;
         }
-        if(realityArbitrationCost[hash]!=0){
-            return realityArbitrationCost[hash];
-        } else { 
-            return( getRealityArbitrationCosts(branches[hash].parent_hash));
-        }
+        return arbitrationCost;
     }
 
+    // cheap way to preregister a branch that one wants to submit. Only clients will be able to process this information and make 
+    // decisions on where a branch was submitted correctly and whether it should be the selected branch if several branches with the samae answers are submitted
+    event Preregisiter(bytes32 parent_branch_hash, bytes32 hashOfAllAnsweredQuestionHashes, bytes32 hashOfAllAnswersSubmitted, address sender);
+    function prerequisterNewBranch(bytes32 parent_branch_hash, bytes32 hashOfAllAnsweredQuestionHashes, bytes32 hashOfAllAnswersSubmitted)
+    public {
+        Preregisiter(parent_branch_hash, hashOfAllAnsweredQuestionHashes, hashOfAllAnswersSubmitted, msg.sender);
+    }
+
+    //@dev addition of a new branch on the system. if there are seleveral branches with the same answers, a metric will decide on which branch should be the selected one
+    //@param parent_branch_hash is the branch of the previous parent hash
+    //@param merkle_root is the merkle_root of the first inital branch
+    //@param data_cntrct is the contract containing the data for the new branch
     function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct)
     public returns (bytes32) {
         uint256 window = (now - genesis_window_timestamp) / 86400; // NB remainder gets rounded down
@@ -85,9 +91,27 @@ contract RealityToken {
         // We must now be a later 24-hour window than the parent.
         require(branches[parent_branch_hash].window < window);
 
+        // add a cost for a false branch, but also reward in case the branch gets accepted
+        int256 securityFund =10*10^18;
+        require(transfer(address(0), uint256(securityFund), parent_branch_hash));
+        branches[branch_hash].balance_change[msg.sender] += securityFund + securityFund/10;
+
+        // distribute further RealityTokens when requested in the data_cntrct via subjectiviocracy
+        DataContract DC = DataContract(data_cntrct);
+        int amount = DC.fundedAmount();
+        if (amount > 0) {
+            branches[branch_hash].balance_change[DC.fundedContract()] += amount;
+
+        }
+
         branches[branch_hash] = Branch(parent_branch_hash, merkle_root, data_cntrct, now, window);
         window_branches[window].push(branch_hash);
         BranchCreated(branch_hash, data_cntrct);
+        
+        // a score for the createdBranch will only be calculated on the client side.
+        // a proposal would be:
+        // uint256 (sha256(branch_hash,data_contract, parent_branch_hash)) *balanceOf(msg.sender, parent_branch_hash) 
+        
         return branch_hash;
     }
 
@@ -118,12 +142,16 @@ contract RealityToken {
         return uint256(bal);
     }
 
+    function getParentBranch(bytes32 branch)
+    public view returns (bytes32){
+        return branches[branch].parent_hash;
+    }
     // Crawl up towards the root of the tree until we get enough, or return false if we never do.
     // You never have negative total balance above you, so if you have enough credit at any point then return.
     // This uses less gas than balanceOfAbove, which always has to go all the way to the root.
     function isAmountSpendable(address addr, uint256 _min_balance, bytes32 branch_hash)
     public constant returns (bool) {
-        require(_min_balance <= 2100000000000000);
+        require(_min_balance <= 210000000000000000000000000);
         int256 bal = 0;
         int256 min_balance = int256(_min_balance);
         while (branch_hash != NULL_HASH) {
@@ -143,7 +171,7 @@ contract RealityToken {
 
         uint256 branch_window = branches[branch].window;
 
-        require(amount <= 2100000000000000);
+        require(amount <= 210000000000000000000000000);
         require(branches[branch].timestamp > 0); // branch must exist
 
         if (branch_window < last_debit_windows[from]) return false; // debits can't go backwards
@@ -166,7 +194,7 @@ contract RealityToken {
     public returns (bool) {
         uint256 branch_window = branches[branch].window;
 
-        require(amount <= 2100000000000000);
+        require(amount <= 210000000000000000000000000);
         require(branches[branch].timestamp > 0); // branch must exist
 
         if (branch_window < last_debit_windows[msg.sender]) return false; // debits can't go backwards
@@ -193,8 +221,8 @@ contract RealityToken {
 
     function isBranchInBetweenBranches(bytes32 investigationHash, bytes32 closerToRootHash, bytes32 fartherToRootHash)
     public constant returns (bool) {
-        bytes32 iterationHash = closerToRootHash;
-        while (iterationHash != fartherToRootHash) {
+        bytes32 iterationHash = fartherToRootHash;
+        while (iterationHash != closerToRootHash) {
             if (investigationHash == iterationHash) {
                 return true;
             } else {

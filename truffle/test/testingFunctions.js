@@ -91,7 +91,7 @@ const setupTest = async (
   await newDataContract.setArbitrationCost(arbitrationCost)
   await newDataContract.finalize()
   await wait(86400)
-  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, newDataContract.address)
+  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, newDataContract.address,0,0)
   first_branch = getParamFromTxEvent(transaction, 'hash', 'BranchCreated')
   return new String(first_branch).valueOf()
 }

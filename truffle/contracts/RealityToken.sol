@@ -76,7 +76,7 @@ contract RealityToken {
     //@param parent_branch_hash is the branch of the previous parent hash
     //@param merkle_root is the merkle_root of the first inital branch
     //@param data_cntrct is the contract containing the data for the new branch
-    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct)
+    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund)
     public returns (bytes32) {
         uint256 window = (now - genesis_window_timestamp) / 86400; // NB remainder gets rounded down
 
@@ -92,9 +92,8 @@ contract RealityToken {
         require(branches[parent_branch_hash].window < window);
 
         // add a cost for a false branch, but also reward in case the branch gets accepted
-        int256 securityFund =10*10^18;
-        require(transfer(address(0), uint256(securityFund), parent_branch_hash));
-        branches[branch_hash].balance_change[msg.sender] += securityFund + securityFund/10;
+        require(transfer(address(0), commitmentFund, parent_branch_hash));
+        branches[branch_hash].balance_change[msg.sender] += int(rewardFund);
 
         // distribute further RealityTokens when requested in the data_cntrct via subjectiviocracy
         DataContract DC = DataContract(data_cntrct);

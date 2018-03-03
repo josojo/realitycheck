@@ -544,20 +544,18 @@ contract RealityCheck is BalanceHolder {
     }
 
     // @dev: this function checks whether a branch is eligigble for a withdraw. 
-    // if a withdraw was already made on a newer childbranch of branchForWithdraw, it will return false
     // if there is a closer parentbranch that the branchFromPreviousWithdraw we throw as well
     function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 question_id)
     public view returns(bool)
     {
         bytes32 branchFromQuestion = questions[question_id].branch;
         bytes32 [] alreadyUsedBranches = questions[question_id].realityWithdrawBranches;
-        // check that tokens were not yet withdrawn in inbetween branches
-        for(uint i=0;i < alreadyUsedBranches.length;i++) {
-            if(realityToken.isBranchInBetweenBranches(branchForWithdraw, branchFromQuestion, alreadyUsedBranches[i]))
-                return false;
-            if(branchFromPreviousWithdraw!=bytes32(0)){    
-            if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
-                return false;   }
+        if(branchFromPreviousWithdraw!=bytes32(0)){ 
+            // check that tokens were not yet withdrawn in inbetween branches
+            for(uint i=0;i < alreadyUsedBranches.length;i++) {
+                if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
+                    return false;   
+            }
         }
         // check that tokens will be withdrawn on a child branch of branch of question
         bytes32 branchParent = branchForWithdraw;

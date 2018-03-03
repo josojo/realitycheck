@@ -2,6 +2,8 @@ pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
 import './DataContract.sol';
+import './Proxy.sol';
+import './RealityMarketInterface.sol';
 
 contract RealityToken {
 
@@ -9,7 +11,7 @@ contract RealityToken {
 
     event Approval(address indexed _owner, address indexed _spender, uint _value, bytes32 branch);
     event Transfer(address indexed _from, address indexed _to, uint _value, bytes32 branch);
-    event BranchCreated(bytes32 hash, address data_cntrct);
+    event BranchCreated(bytes32 hash, address data_cntrct, address market);
 
 
     string public constant name = "Reality-Token";
@@ -26,6 +28,7 @@ contract RealityToken {
         uint256 timestamp; // Timestamp branch was mined
         uint256 window; // Day x of the system's operation, starting at UTC 00:00:00
         mapping(address => int256) balance_change; // user debits and credits
+        address market;
     }
     mapping(bytes32 => Branch) public branches;
 
@@ -46,7 +49,7 @@ contract RealityToken {
         genesis_window_timestamp = now - (now % 86400);
         bytes32 genesis_merkle_root = keccak256("I leave to several futures (not to all) my garden of forking paths");
         bytes32 genesis_branch_hash = keccak256(NULL_HASH, genesis_merkle_root, NULL_ADDRESS);
-        branches[genesis_branch_hash] = Branch(NULL_HASH, genesis_merkle_root, initialDataContract, now, 0);
+        branches[genesis_branch_hash] = Branch(NULL_HASH, genesis_merkle_root, initialDataContract, now, 0, address(0));
         branches[genesis_branch_hash].balance_change[initalDistribution] = 210000000000000000000000000 ;
         window_branches[0].push(genesis_branch_hash);
         genesis_branch = genesis_branch_hash;
@@ -76,8 +79,11 @@ contract RealityToken {
     //@param parent_branch_hash is the branch of the previous parent hash
     //@param merkle_root is the merkle_root of the first inital branch
     //@param data_cntrct is the contract containing the data for the new branch
-    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund)
+    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund, address marketMasterCopy)
     public returns (bytes32) {
+
+        address market = new Proxy(marketMasterCopy);
+
         uint256 window = (now - genesis_window_timestamp) / 86400; // NB remainder gets rounded down
 
         bytes32 branch_hash = keccak256(parent_branch_hash, merkle_root, data_cntrct);
@@ -91,9 +97,6 @@ contract RealityToken {
         // We must now be a later 24-hour window than the parent.
         require(branches[parent_branch_hash].window < window);
 
-        // add a cost for a false branch, but also reward in case the branch gets accepted
-        require(transfer(address(0), commitmentFund, parent_branch_hash));
-        branches[branch_hash].balance_change[msg.sender] += int(rewardFund);
 
         // distribute further RealityTokens when requested in the data_cntrct via subjectiviocracy
         DataContract DC = DataContract(data_cntrct);
@@ -103,9 +106,15 @@ contract RealityToken {
 
         }
 
-        branches[branch_hash] = Branch(parent_branch_hash, merkle_root, data_cntrct, now, window);
+        branches[branch_hash] = Branch(parent_branch_hash, merkle_root, data_cntrct, now, window, market);
         window_branches[window].push(branch_hash);
-        BranchCreated(branch_hash, data_cntrct);
+        BranchCreated(branch_hash, data_cntrct, market);
+
+        // add a cost for a false branch, but also reward in case the branch gets accepted
+        allowed[msg.sender][market][branch_hash] = commitmentFund;
+        RealityMarketInterface(marketMasterCopy).initializeAuction(commitmentFund, branch_hash, parent_branch_hash, this, msg.sender);
+        branches[branch_hash].balance_change[msg.sender] += int(rewardFund);
+
         
         // a score for the createdBranch will only be calculated on the client side.
         // a proposal would be:
@@ -145,6 +154,8 @@ contract RealityToken {
     public view returns (bytes32){
         return branches[branch].parent_hash;
     }
+
+
     // Crawl up towards the root of the tree until we get enough, or return false if we never do.
     // You never have negative total balance above you, so if you have enough credit at any point then return.
     // This uses less gas than balanceOfAbove, which always has to go all the way to the root.

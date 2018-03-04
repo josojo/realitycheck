@@ -10,14 +10,26 @@ contract RealityMarket{
 	    bytes32 public parentReality;
 	    bytes32 public childReality;
 	    RealityToken realityToken;
-	    mapping (address => uint) buyOrders;
-	    mapping (address => uint) sellOrders;
-	    uint public timeOfCreation;
-	    uint public totalSellVolume;
-	    uint public totalBuyVolume;
-	    uint public marketStartTime;
-	    uint public currentPeriod;
-	    uint public lastTotalSellVolume;
+   	    uint public timeOfCreation;
+   	    //tracking orders from users
+	    mapping (address => uint) buyChildOrders;
+	    mapping (address => uint) buyParentOrders;
+	    //tracking total sum of orders 
+	    uint public totalBuyChildTokenVolume;
+	    uint public totalBuyParentTokenVolume;
+	    //
+	    uint public currentPeriodBuyParent;
+	    uint public currentPeriodBuyChild;
+
+	    uint public lastTotalBuyParentTokenVolume;
+
+	    uint public prevUpperLimitForPriceNum=1;
+	    uint public prevUpperLimitForPriceDen=1;
+	    uint public prevPrevUpperLimitForPriceNum=1;
+	    uint public prevPrevUpperLimitForPriceDen=1;
+	    uint public upperLimitForPriceNum=1;
+	    uint public upperLimitForPriceDen=1;
+	    
 	    uint constant ONETRADEPERIOD=60*60*24;
 
 	    mapping (address => bytes32[]) withdrawBranchesForChildTokens;
@@ -34,49 +46,73 @@ contract RealityMarket{
 		childReality = childReality_;
 		timeOfCreation = now;
 		// process the first buyParentOrder
-		buyOrders[sender]+= amount;
-		totalBuyVolume+=amount;
-	}
-
-	function sellParentTokens(uint amount)
-	public{
-		require(currentPeriod<=6);
-		amount = max(amount, totalBuyVolume - totalSellVolume);
-		require(realityToken.transferFrom(msg.sender,this, amount, parentReality));	
-		sellOrders[msg.sender]+= amount;
-		totalSellVolume+=amount;
+		buyChildOrders[sender]+= amount;
+		totalBuyChildTokenVolume+=amount;
 	}
 
 	function buyParentTokens(uint amount)
 	public{
 		uint FACTOR=0;
-		if(now>ONETRADEPERIOD*(currentPeriod+1)){
-			currentPeriod=uint((now-timeOfCreation)/ONETRADEPERIOD);
-			lastTotalSellVolume=totalSellVolume;
+		if(now>ONETRADEPERIOD*(currentPeriodBuyParent+1)){
+			currentPeriodBuyParent=uint((now-timeOfCreation)/ONETRADEPERIOD);
+			lastTotalBuyParentTokenVolume=totalBuyParentTokenVolume;
 		}
-		if(currentPeriod>0){
+		if(currentPeriodBuyParent==1){
+			FACTOR=400;	
+		}
+		if(currentPeriodBuyParent==2){
 			FACTOR=200;	
 		}
-		if(currentPeriod>1){
-			FACTOR=150;	
+		if(currentPeriodBuyParent==3){
+			FACTOR=100;	
 		}
-		if(currentPeriod>2){
-			FACTOR=125;	
+		if(currentPeriodBuyParent==4){
+			FACTOR=50;	
 		}
-		if(currentPeriod>3){
-			FACTOR=112;	
+		if(currentPeriodBuyParent==5){
+			FACTOR=25;	
 		}
-		if(currentPeriod>4){
-			FACTOR=105;	
+		if(currentPeriodBuyParent==6){
+			FACTOR=5;	
 		}
-		if(currentPeriod>5){
-			FACTOR=102;	
-		}
-		require(currentPeriod<=6);
-		amount = max(amount, lastTotalSellVolume*FACTOR/100 - totalSellVolume);
+		require(currentPeriodBuyParent<=6);
+		amount = max(amount, lastTotalBuyParentTokenVolume*FACTOR/100 - totalBuyParentTokenVolume);
 		require(realityToken.transferFrom(msg.sender,this, amount, childReality));	
-		buyOrders[msg.sender]+= amount;
-		totalBuyVolume+=amount;
+		buyParentOrders[msg.sender]+= amount;
+		totalBuyParentTokenVolume+=amount;
+	}
+
+	function buyChildTokens(uint amount)
+	public{
+		if(now>ONETRADEPERIOD*(currentPeriodBuyChild+1)){
+			uint tempCurrentPeriodBuyChild = uint((now-timeOfCreation)/ONETRADEPERIOD);
+			if(tempCurrentPeriodBuyChild>currentPeriodBuyChild + 1)
+			{
+				if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen<totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
+						upperLimitForPriceNum = prevPrevUpperLimitForPriceNum;
+						upperLimitForPriceDen = prevPrevUpperLimitForPriceDen;
+				}
+				prevPrevUpperLimitForPriceNum = prevUpperLimitForPriceNum;
+				prevPrevUpperLimitForPriceDen = prevUpperLimitForPriceDen;
+				prevUpperLimitForPriceNum = totalBuyChildTokenVolume;
+				prevUpperLimitForPriceDen = totalBuyParentTokenVolume;	
+			}else{
+				if(prevUpperLimitForPriceNum*prevPrevUpperLimitForPriceDen<prevUpperLimitForPriceDen*prevUpperLimitForPriceDen)
+					if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen<totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
+						upperLimitForPriceNum = prevPrevUpperLimitForPriceNum;
+						upperLimitForPriceDen = prevPrevUpperLimitForPriceDen;
+					}
+				prevPrevUpperLimitForPriceNum = prevUpperLimitForPriceNum;
+				prevPrevUpperLimitForPriceDen = prevUpperLimitForPriceDen;
+				prevUpperLimitForPriceNum = totalBuyChildTokenVolume;
+				prevUpperLimitForPriceDen = totalBuyParentTokenVolume;	
+			}
+			currentPeriodBuyChild=uint((now-timeOfCreation)/ONETRADEPERIOD);
+		}
+		amount = max(amount, upperLimitForPriceNum*totalBuyParentTokenVolume/upperLimitForPriceDen - totalBuyChildTokenVolume);
+		require(realityToken.transferFrom(msg.sender,this, amount, parentReality));	
+		buyChildOrders[msg.sender]+= amount;
+		totalBuyChildTokenVolume+=amount;
 	}
 
 	//withdraw is only possible on parentbranch
@@ -87,10 +123,10 @@ contract RealityMarket{
 			require(!realityToken.isBranchInBetweenBranches(withdrawBranchesForParentTokens[msg.sender][i], childReality,branchForWithdraw));
 		}
 
-		uint amount = buyOrders[msg.sender]*totalSellVolume/totalBuyVolume;
+		uint amount = buyParentOrders[msg.sender]*totalBuyChildTokenVolume/totalBuyParentTokenVolume;
 		realityToken.transfer(msg.sender, amount, parentReality);
 		if(gasEfficient){
-			buyOrders[msg.sender]=0;
+			buyParentOrders[msg.sender]=0;
 		} else {
 			withdrawBranchesForParentTokens[msg.sender].push(branchForWithdraw);
 		}
@@ -102,17 +138,17 @@ contract RealityMarket{
 		for(uint i=0;i<withdrawBranchesForChildTokens[msg.sender].length;i++){
 			require(!realityToken.isBranchInBetweenBranches(withdrawBranchesForChildTokens[msg.sender][i], childReality,branchForWithdraw));
 		}
-			uint amount = sellOrders[msg.sender]*totalBuyVolume/totalSellVolume;
-			realityToken.transfer(msg.sender, amount, branchForWithdraw);
+		uint amount = buyChildOrders[msg.sender]*totalBuyParentTokenVolume/totalBuyChildTokenVolume;
+		realityToken.transfer(msg.sender, amount, branchForWithdraw);
 
 		if(gasEfficient)
-			sellOrders[msg.sender]=0;
+			buyChildOrders[msg.sender]=0;
 		else{
 			withdrawBranchesForChildTokens[msg.sender].push(branchForWithdraw);
 		}	
 	}
 	function max(uint a, uint b)
-	public returns(uint){
+	public pure returns(uint){
 		if(a>b)
 		return a;
 		else return b;

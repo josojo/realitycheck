@@ -37,6 +37,7 @@ const contractNames = [
   'RealityCheck',
   'RealityToken',
   'Distribution',
+  'RealityMarket',
 ]
 // DutchExchange and TokenOWL are added after their respective Proxy contracts are deployed
 
@@ -74,6 +75,7 @@ const setupTest = async (
     RealityCheck: realityCheck,
     DataContract: dataContract,
     Distribution: distribution,
+    RealityMarket: realityMarket,
   },
   {
     amountRLT = 50.0.toWei(),
@@ -84,14 +86,20 @@ const setupTest = async (
   }))
   assert.equal((await realityToken.balanceOf(accounts[0],genesis_branch)).toNumber(),10e23)
   console.log('tokendistribtuion done')
+  console.log("relaitymarket address",realityMarket.address)
 
   // asking a first question
   newDataContract = await artifacts.require('./DataContract').new({from: accounts[0]})
+
   //await newDataContract.SupportDapp([realityCheck.address])
   await newDataContract.setArbitrationCost(arbitrationCost)
   await newDataContract.finalize()
   await wait(86400)
-  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, newDataContract.address,0,0)
+    console.log('data contract made')
+
+  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, newDataContract.address,1,0,0)
+  market = getParamFromTxEvent(transaction, 'market', 'BranchCreated')
+  console.log(market)
   first_branch = getParamFromTxEvent(transaction, 'hash', 'BranchCreated')
   return new String(first_branch).valueOf()
 }

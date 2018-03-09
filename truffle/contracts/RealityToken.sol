@@ -40,7 +40,7 @@ contract RealityToken {
     mapping(uint256 => bytes32[]) public window_branches; 
     // 00:00:00 UTC on the day the contract was mined
     uint256 public genesis_window_timestamp;
-    uint256 public constant windowPeriod=86400;  
+    uint256 public constant windowPeriod=(86400);  
 
     // allowanceFrom => allowanceTo => onBranch => amount
     mapping(address => mapping(address => mapping(bytes32=> uint256))) allowed;
@@ -88,7 +88,7 @@ contract RealityToken {
     function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund, address newMarketMasterCopy)
     public returns (bytes32) {
         //get the marketMasterCopy and create a new Market
-        address marketMasterCopyFromParents= getMarketMasterCopy(parent_branch_hash);
+        address marketMasterCopyFromParents= getMarketMasterCopy(parent_branch_hash, merkle_root);
         address market = new Proxy(marketMasterCopyFromParents);
         uint256 window = (now - genesis_window_timestamp) / windowPeriod; // NB remainder gets rounded down
 
@@ -113,10 +113,10 @@ contract RealityToken {
 
         branches[branch_hash] = Branch(parent_branch_hash, merkle_root, data_cntrct, now, window, market);
         window_branches[window].push(branch_hash);
-        BranchCreated(branch_hash, data_cntrct, market);
+        BranchCreated(branch_hash, data_cntrct, marketMasterCopyFromParents);
 
         // add a cost for a false branch, but also reward in case the branch gets accepted
-        allowed[msg.sender][market][branch_hash] = commitmentFund;
+        allowed[msg.sender][market][parent_branch_hash] = commitmentFund;
         RealityMarketInterface(market).initializeAuction(commitmentFund, branch_hash, parent_branch_hash, this, msg.sender);
         branches[branch_hash].balance_change[msg.sender] += int(rewardFund);
         if(newMarketMasterCopy!=address(0)){
@@ -254,13 +254,15 @@ contract RealityToken {
         }
         return false;
     }
-    function getMarketMasterCopy(bytes32 iteratorBranch)
+    function getMarketMasterCopy(bytes32 iteratorBranch, bytes32 merkle_root)
         public
+        view
         returns (address)
     {
         address marketMasterCopyFromParents;
-        while(marketMasterCopyFromParents!= address(0)){
-            marketMasterCopyFromParents= marketMasterCopy[iteratorBranch];
+        while(marketMasterCopyFromParents == address(0)){
+            marketMasterCopyFromParents = marketMasterCopy[iteratorBranch];
+            if(iteratorBranch != merkle_root)
             iteratorBranch = getParentBranch(iteratorBranch);
         }
         return marketMasterCopyFromParents;

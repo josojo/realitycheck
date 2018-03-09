@@ -5,13 +5,13 @@ import './SafeMath32.sol';
 import './RealityToken.sol';
 import './DataContract.sol';
 import './RealityMarket.sol';
-import "@gnosis.pm/gnosis-core-contracts/contracts/Tokens/StandardToken.sol";
+import "@gnosis.pm/gnosis-core-contracts/contracts/Tokens/EtherToken.sol";
 
 contract InitialLendingContract {
 	using SafeMath for uint;
 	bytes32 public intializationBranch;
 	mapping (uint => bytes32[]) public withdrawBranches;
-	StandardToken public etherToken;
+	EtherToken public etherToken;
 	RealityToken public realityToken;
 	uint public lendingPriceEthNum = 1;
 	uint public lendingPriceEthDen = 100;
@@ -26,7 +26,7 @@ contract InitialLendingContract {
 
 	address owner;
 
-	function InitialLendingContract(bytes32 intializationBranch_, StandardToken etherToken_, RealityToken realityToken_)
+	function InitialLendingContract(bytes32 intializationBranch_, EtherToken etherToken_, RealityToken realityToken_)
 		public 
 	{
 		owner = msg.sender;

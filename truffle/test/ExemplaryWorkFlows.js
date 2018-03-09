@@ -67,7 +67,6 @@ const c1 = () => contract('RealityCheck - Escalation with RealityToken as Arbitr
   before(async () => {
     // get contracts
     await setupContracts()
-
     // set up accounts and tokens[contracts]
     const first_branch = await setupTest(accounts, contracts, startBal)
     branches = [[genesis_branch], [first_branch]]
@@ -111,7 +110,7 @@ const c1 = () => contract('RealityCheck - Escalation with RealityToken as Arbitr
     await newDataContract.addAnswer([questionId], [YES], { from: BranchProvider })
     await newDataContract.finalize({ from: BranchProvider })
     await wait(86400)
-    const transaction = await realityToken.createBranch(branches[1][0], genesis_branch, newDataContract.address, 0, 0, { from: BranchProvider })
+    const transaction = await realityToken.createBranch(branches[1][0], genesis_branch, newDataContract.address, 1, 0, 0, { from: BranchProvider })
     const second_branch = getParamFromTxEvent(transaction, 'hash', 'BranchCreated')
     branches.push([second_branch])
   })
@@ -119,7 +118,7 @@ const c1 = () => contract('RealityCheck - Escalation with RealityToken as Arbitr
     newDataContract = await artifacts.require('./DataContract').new({ from: bonderNO })
     await newDataContract.addAnswer([questionId], [NO], { from: bonderNO })
     await newDataContract.finalize({ from: bonderNO })
-    const transaction = await realityToken.createBranch(branches[1][0], genesis_branch, newDataContract.address, 0, 0, { from: bonderNO })
+    const transaction = await realityToken.createBranch(branches[1][0], genesis_branch, newDataContract.address, 1, 0, 0, { from: bonderNO })
     const second_branch = getParamFromTxEvent(transaction, 'hash', 'BranchCreated')
     branches[2][1] = second_branch
   })

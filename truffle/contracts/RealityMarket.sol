@@ -46,16 +46,16 @@ contract RealityMarket{
 	function initializeAuction(uint amount, bytes32 childReality_, bytes32 parentReality_, address realityToken_, address sender)
 	public 
 	{
-		require(realityToken==address(0));
-		require(realityToken.transferFrom(sender,this, amount, parentReality));
+		require(realityToken_ != address(0));
+		require(RealityToken(realityToken_).transferFrom(sender,this, amount, parentReality_));
 		//setting initial variables
 		realityToken = RealityToken(realityToken_);
 		parentReality = parentReality_;
 		childReality = childReality_;
 		timeOfCreation = now;
 		// process the first buyParentOrder
-		buyChildOrders[sender]+= amount;
-		totalBuyChildTokenVolume+=amount;
+		buyChildOrders[sender] += amount;
+		totalBuyChildTokenVolume += amount;
 	}
 
 	function buyParentTokens(uint amount)

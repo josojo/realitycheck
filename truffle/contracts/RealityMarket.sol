@@ -6,7 +6,9 @@ import './RealityToken.sol';
 
 
 contract RealityMarket{
+		// masterCopy needs to be specified to make the ProxyContract work.
 	    address masterCopy;
+
 	    bytes32 public parentReality;
 	    bytes32 public childReality;
 	    RealityToken realityToken;
@@ -17,7 +19,7 @@ contract RealityMarket{
 	    //tracking total sum of orders 
 	    uint public totalBuyChildTokenVolume;
 	    uint public totalBuyParentTokenVolume;
-	    //
+	    
 	    uint public currentPeriodBuyParent;
 	    uint public currentPeriodBuyChild;
 
@@ -30,10 +32,16 @@ contract RealityMarket{
 	    uint public upperLimitForPriceNum=1;
 	    uint public upperLimitForPriceDen=1;
 	    
-	    uint constant ONETRADEPERIOD=60*60*24;
+	    uint constant ONETRADEPERIOD=(1 days);
 
 	    mapping (address => bytes32[]) withdrawBranchesForChildTokens;
 	    mapping (address => bytes32[]) withdrawBranchesForParentTokens;
+
+
+    modifier auctionEnded() {
+        require(isAuctionClosed());
+        _;
+    }
 
 	function initializeAuction(uint amount, bytes32 childReality_, bytes32 parentReality_, address realityToken_, address sender)
 	public 
@@ -116,9 +124,9 @@ contract RealityMarket{
 	}
 
 	//withdraw is only possible on parentbranch
-	function withdrawParentTokens(bytes32 branchForWithdraw, bool  gasEfficient) public {
-		require((now-timeOfCreation)/ONETRADEPERIOD>6);
-
+	function withdrawParentTokens(bytes32 branchForWithdraw, bool  gasEfficient) 
+		auctionEnded()
+	public {
 		for(uint i=0;i<withdrawBranchesForParentTokens[msg.sender].length;i++){
 			require(!realityToken.isBranchInBetweenBranches(withdrawBranchesForParentTokens[msg.sender][i], childReality,branchForWithdraw));
 		}
@@ -133,7 +141,9 @@ contract RealityMarket{
 	}
 
 	//withdraws is only possible on direct parentbranches of child branch
-	function withdrawChildTokens(bytes32 branchForWithdraw, bool gasEfficient) public {
+	function withdrawChildTokens(bytes32 branchForWithdraw, bool gasEfficient) 
+		auctionEnded()
+	public {
 		require((now-timeOfCreation)/ONETRADEPERIOD>6);
 		for(uint i=0;i<withdrawBranchesForChildTokens[msg.sender].length;i++){
 			require(!realityToken.isBranchInBetweenBranches(withdrawBranchesForChildTokens[msg.sender][i], childReality,branchForWithdraw));
@@ -146,6 +156,11 @@ contract RealityMarket{
 		else{
 			withdrawBranchesForChildTokens[msg.sender].push(branchForWithdraw);
 		}	
+	}
+
+	function isAuctionClosed()
+	public returns (bool){
+		return (now-timeOfCreation)/ONETRADEPERIOD>6;
 	}
 	function max(uint a, uint b)
 	public pure returns(uint){

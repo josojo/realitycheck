@@ -102,5 +102,4 @@ contract FireInsuranceExample is BalanceHolder {
         balanceOf[insurer] = balanceOf[insurer].add(premium).add(face_value);
         delete policies[policy_id];
     }
-
 }

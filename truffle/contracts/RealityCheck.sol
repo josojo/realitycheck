@@ -2,12 +2,11 @@ pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
 import './SafeMath32.sol';
-import './BalanceHolder.sol';
 import './RealityToken.sol';
 import './DataContract.sol';
 
 
-contract RealityCheck is BalanceHolder {
+contract RealityCheck {
 
     using SafeMath for uint256;
     using SafeMath32 for uint32;

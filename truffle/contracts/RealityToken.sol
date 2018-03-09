@@ -29,27 +29,30 @@ contract RealityToken {
         uint256 window; // Day x of the system's operation, starting at UTC 00:00:00
         mapping(address => int256) balance_change; // user debits and credits
         address market;
-    }
-    mapping(bytes32 => Branch) public branches;
+        }
 
+    mapping(bytes32 => Branch) public branches;
+    mapping (bytes32 => address) public marketMasterCopy;
     // Spends, which may cause debits, can only go forwards.
     // That way when we check if you have enough to spend we only have to go backwards.
     mapping(address => uint256) public last_debit_windows; // index of last user debits to stop you going backwards
     // index to easily get all branch hashes for a window
     mapping(uint256 => bytes32[]) public window_branches; 
     // 00:00:00 UTC on the day the contract was mined
-    uint256 public genesis_window_timestamp; 
+    uint256 public genesis_window_timestamp;
+    uint256 public constant windowPeriod=86400;  
 
     // allowanceFrom => allowanceTo => onBranch => amount
     mapping(address => mapping(address => mapping(bytes32=> uint256))) allowed;
 
     bytes32 public genesis_branch;
-    function RealityToken(address initalDistribution, address initialDataContract)
+    function RealityToken(address initalDistribution, address initialDataContract,address _marketMasterCopy)
     public {
-        genesis_window_timestamp = now - (now % 86400);
+        genesis_window_timestamp = now - (now % windowPeriod);
         bytes32 genesis_merkle_root = keccak256("I leave to several futures (not to all) my garden of forking paths");
         bytes32 genesis_branch_hash = keccak256(NULL_HASH, genesis_merkle_root, NULL_ADDRESS);
         branches[genesis_branch_hash] = Branch(NULL_HASH, genesis_merkle_root, initialDataContract, now, 0, address(0));
+        marketMasterCopy[genesis_branch_hash] = _marketMasterCopy;
         branches[genesis_branch_hash].balance_change[initalDistribution] = 210000000000000000000000000 ;
         window_branches[0].push(genesis_branch_hash);
         genesis_branch = genesis_branch_hash;
@@ -79,12 +82,15 @@ contract RealityToken {
     //@param parent_branch_hash is the branch of the previous parent hash
     //@param merkle_root is the merkle_root of the first inital branch
     //@param data_cntrct is the contract containing the data for the new branch
-    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund, address marketMasterCopy)
+    //@param commitmentFund is the amount to be sold in the market created between the new branch and the parent_branch
+    //@param rewardFund is the amount of Tokens created for the Branch creator 
+    //@param newMarketMasterCopy can be specified in order to introduce a new Market logic to the child_branches of this new created branch
+    function createBranch(bytes32 parent_branch_hash, bytes32 merkle_root, address data_cntrct, uint256 commitmentFund, uint rewardFund, address newMarketMasterCopy)
     public returns (bytes32) {
-
-        address market = new Proxy(marketMasterCopy);
-
-        uint256 window = (now - genesis_window_timestamp) / 86400; // NB remainder gets rounded down
+        //get the marketMasterCopy and create a new Market
+        address marketMasterCopyFromParents= getMarketMasterCopy(parent_branch_hash);
+        address market = new Proxy(marketMasterCopyFromParents);
+        uint256 window = (now - genesis_window_timestamp) / windowPeriod; // NB remainder gets rounded down
 
         bytes32 branch_hash = keccak256(parent_branch_hash, merkle_root, data_cntrct);
         require(branch_hash != NULL_HASH);
@@ -100,9 +106,8 @@ contract RealityToken {
 
         // distribute further RealityTokens when requested in the data_cntrct via subjectiviocracy
         DataContract DC = DataContract(data_cntrct);
-        int amount = DC.fundedAmount();
-        if (amount > 0) {
-            branches[branch_hash].balance_change[DC.fundedContract()] += amount;
+        if (DC.fundedAmount()> 0) {
+            branches[branch_hash].balance_change[DC.fundedContract()] += DC.fundedAmount();
 
         }
 
@@ -112,10 +117,12 @@ contract RealityToken {
 
         // add a cost for a false branch, but also reward in case the branch gets accepted
         allowed[msg.sender][market][branch_hash] = commitmentFund;
-        RealityMarketInterface(marketMasterCopy).initializeAuction(commitmentFund, branch_hash, parent_branch_hash, this, msg.sender);
+        RealityMarketInterface(market).initializeAuction(commitmentFund, branch_hash, parent_branch_hash, this, msg.sender);
         branches[branch_hash].balance_change[msg.sender] += int(rewardFund);
+        if(newMarketMasterCopy!=address(0)){
+            marketMasterCopy[branch_hash]=newMarketMasterCopy;
+        }
 
-        
         // a score for the createdBranch will only be calculated on the client side.
         // a proposal would be:
         // uint256 (sha256(branch_hash,data_contract, parent_branch_hash)) *balanceOf(msg.sender, parent_branch_hash) 
@@ -154,6 +161,12 @@ contract RealityToken {
     public view returns (bytes32){
         return branches[branch].parent_hash;
     }
+    
+    function getAuctionMarketForBranch(bytes32 branch)
+    public view returns (address){
+        return branches[branch].market;
+    }
+
 
 
     // Crawl up towards the root of the tree until we get enough, or return false if we never do.
@@ -241,5 +254,15 @@ contract RealityToken {
         }
         return false;
     }
-
+    function getMarketMasterCopy(bytes32 iteratorBranch)
+        public
+        returns (address)
+    {
+        address marketMasterCopyFromParents;
+        while(marketMasterCopyFromParents!= address(0)){
+            marketMasterCopyFromParents= marketMasterCopy[iteratorBranch];
+            iteratorBranch = getParentBranch(iteratorBranch);
+        }
+        return marketMasterCopyFromParents;
+    }
 }

@@ -32,7 +32,7 @@ contract RealityMarket{
 	    uint public upperLimitForPriceNum=1;
 	    uint public upperLimitForPriceDen=1;
 	    
-	    uint constant ONETRADEPERIOD=(1 days);
+	    uint constant ONE_TRADE_PERIOD=(1 days);
 
 	    mapping (address => bytes32[]) withdrawBranchesForChildTokens;
 	    mapping (address => bytes32[]) withdrawBranchesForParentTokens;
@@ -42,7 +42,7 @@ contract RealityMarket{
         require(isAuctionClosed());
         _;
     }
-
+    //@dev initializes the auction and processes the first buyParentTokens from the branch creator
 	function initializeAuction(uint amount, bytes32 childReality_, bytes32 parentReality_, address realityToken_, address sender)
 	public 
 	{
@@ -57,12 +57,16 @@ contract RealityMarket{
 		buyChildOrders[sender] += amount;
 		totalBuyChildTokenVolume += amount;
 	}
-
+    //@dev allows to participate in the auction and sell child RealityTokens against Parent RealityTokens
+    //@dev the maximal amount of tokens to be sold is limited after the first TRADE_PERIOD and for all subsequent 
+    //@dev auctions less and less tokens are allowed to sell. This mechaism helps to migrate huge price changes
+    //@dev in the last minutes of an auction
+    //@param amount amount of child RealityTokens submitted into the auction
 	function buyParentTokens(uint amount)
 	public{
 		uint FACTOR=0;
-		if(now>ONETRADEPERIOD*(currentPeriodBuyParent+1)){
-			currentPeriodBuyParent=uint((now-timeOfCreation)/ONETRADEPERIOD);
+		if(now>ONE_TRADE_PERIOD*(currentPeriodBuyParent+1)){
+			currentPeriodBuyParent=uint((now-timeOfCreation)/ONE_TRADE_PERIOD);
 			lastTotalBuyParentTokenVolume=totalBuyParentTokenVolume;
 		}
 		if(currentPeriodBuyParent==1){
@@ -89,14 +93,17 @@ contract RealityMarket{
 		buyParentOrders[msg.sender]+= amount;
 		totalBuyParentTokenVolume+=amount;
 	}
-
+	//@dev allows to participate in the auction and sell parent RealityTokens against child RealityTokens
+    //@dev the maximal amount of tokens to be sold will be limited in a Trading period so that a price child / parent RealityTokens
+    //@dev can not be pushed higher than certain prices seen earlier in the market
+    //@param amount amount of parent RealityTokens submitted into the auction
 	function buyChildTokens(uint amount)
 	public{
-		if(now>ONETRADEPERIOD*(currentPeriodBuyChild+1)){
-			uint tempCurrentPeriodBuyChild = uint((now-timeOfCreation)/ONETRADEPERIOD);
+		if(now>ONE_TRADE_PERIOD*(currentPeriodBuyChild+1)){
+			uint tempCurrentPeriodBuyChild = uint((now-timeOfCreation)/ONE_TRADE_PERIOD);
 			if(tempCurrentPeriodBuyChild>currentPeriodBuyChild + 1)
 			{
-				if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen<totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
+				if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen <= totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
 						upperLimitForPriceNum = prevPrevUpperLimitForPriceNum;
 						upperLimitForPriceDen = prevPrevUpperLimitForPriceDen;
 				}
@@ -105,8 +112,8 @@ contract RealityMarket{
 				prevUpperLimitForPriceNum = totalBuyChildTokenVolume;
 				prevUpperLimitForPriceDen = totalBuyParentTokenVolume;	
 			}else{
-				if(prevUpperLimitForPriceNum*prevPrevUpperLimitForPriceDen<prevUpperLimitForPriceDen*prevUpperLimitForPriceDen)
-					if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen<totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
+				if(prevUpperLimitForPriceNum*prevPrevUpperLimitForPriceDen <= prevUpperLimitForPriceDen*prevUpperLimitForPriceDen)
+					if(totalBuyChildTokenVolume*prevPrevUpperLimitForPriceDen <= totalBuyParentTokenVolume*prevUpperLimitForPriceDen){
 						upperLimitForPriceNum = prevPrevUpperLimitForPriceNum;
 						upperLimitForPriceDen = prevPrevUpperLimitForPriceDen;
 					}
@@ -115,7 +122,7 @@ contract RealityMarket{
 				prevUpperLimitForPriceNum = totalBuyChildTokenVolume;
 				prevUpperLimitForPriceDen = totalBuyParentTokenVolume;	
 			}
-			currentPeriodBuyChild=uint((now-timeOfCreation)/ONETRADEPERIOD);
+			currentPeriodBuyChild=uint((now-timeOfCreation)/ONE_TRADE_PERIOD);
 		}
 		amount = max(amount, upperLimitForPriceNum*totalBuyParentTokenVolume/upperLimitForPriceDen - totalBuyChildTokenVolume);
 		require(realityToken.transferFrom(msg.sender,this, amount, parentReality));	
@@ -144,7 +151,7 @@ contract RealityMarket{
 	function withdrawChildTokens(bytes32 branchForWithdraw, bool gasEfficient) 
 		auctionEnded()
 	public {
-		require((now-timeOfCreation)/ONETRADEPERIOD>6);
+		require((now-timeOfCreation)/ONE_TRADE_PERIOD>6);
 		for(uint i=0;i<withdrawBranchesForChildTokens[msg.sender].length;i++){
 			require(!realityToken.isBranchInBetweenBranches(withdrawBranchesForChildTokens[msg.sender][i], childReality,branchForWithdraw));
 		}
@@ -160,7 +167,7 @@ contract RealityMarket{
 
 	function isAuctionClosed()
 	public returns (bool){
-		return (now-timeOfCreation)/ONETRADEPERIOD>6;
+		return (now-timeOfCreation)/ONE_TRADE_PERIOD>6;
 	}
 	function max(uint a, uint b)
 	public pure returns(uint){

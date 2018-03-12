@@ -72,9 +72,9 @@ contract DataContract{
 
    //all answeres needs to be added one after another;
    function addAnswer(bytes32[] hashid_, bytes32[] answer_)
-   isOwner()
-   notYetFinished()
-   public
+      isOwner()
+      notYetFinished()
+      public
    {
       for(uint i=0;i<hashid_.length;i++){
         answersBytes[hashid_[i]] = answer_[i];
@@ -84,13 +84,21 @@ contract DataContract{
     }
 
    function finalize()
-   isOwner()
-   public{
-     isFinished = true;
+      isOwner()
+      public
+   {
+      isFinished = true;
    }
 
    function getAnswer(bytes32 hashid_) constant public returns (bytes32){
      require(answerGiven[hashid_]);
      return answersBytes[hashid_];
+   }
+   
+   function isAnswerSet(bytes32 hashid_) constant public returns (bool){
+     if(answerGiven[hashid_])
+        return true;
+     else 
+        return false;
    }
 }

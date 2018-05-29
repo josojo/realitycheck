@@ -103,7 +103,7 @@ contract RealityCheck {
 
     struct Question {
         bytes32 content_hash;
-        address arbitrator;
+        uint arbitrator;
         uint32 opening_ts;
         uint32 timeout;
         uint32 finalize_ts;
@@ -158,12 +158,7 @@ contract RealityCheck {
         require(questions[question_id].timeout == 0);
         _;
     }
-    
-    modifier stateStillChallengableWithRealityTokens(bytes32 question_id) {
-        require(questions[question_id].endOfChallengingPeriodForRealityToken > now || (questions[question_id].endOfChallengingPeriodForRealityToken == ARBITRATOR_ANSWER_IS_MISSING && (questions[question_id].finalize_ts == UNANSWERED || questions[question_id].finalize_ts > uint32(now)))); // Check existence
-        require(!questions[question_id].is_pending_arbitration_from_realityToken);
-        _;
-    } 
+
 
     modifier stateOpen(bytes32 question_id) {
         require(questions[question_id].timeout > 0); // Check existence
@@ -250,7 +245,7 @@ contract RealityCheck {
         uint256 nonce,
         uint amount,
         bytes32 branch,
-        address arbitrator  
+        uint arbitrator  
     ) 
         // stateNotCreated is enforced by the internal _askQuestion
     public returns (bytes32) {
@@ -266,7 +261,7 @@ contract RealityCheck {
     /// @param opening_ts If set, the earliest time it should be possible to answer the question.
     /// @param nonce A user-specified nonce used in the question ID. Change it to repeat a question.
     /// @return The ID of the newly-created question, created deterministically.
-    function askQuestion(uint256 template_id, string question, uint32 timeout, uint32 opening_ts, uint256 nonce, uint amount, bytes32 branch, address arbitrator) 
+    function askQuestion(uint256 template_id, string question, uint32 timeout, uint32 opening_ts, uint256 nonce, uint amount, bytes32 branch, uint arbitratorNr) 
         // stateNotCreated is enforced by the internal _askQuestion
     public returns (bytes32) {
 
@@ -288,7 +283,7 @@ contract RealityCheck {
         uint32 opening_ts,
         uint amount,
         bytes32 branch,
-        address arbitrator
+        uint arbitrator
     ) 
     stateNotCreated(question_id)
     internal 
@@ -325,7 +320,7 @@ contract RealityCheck {
     function fundAnswerBounty(bytes32 question_id, uint amount, bytes32 content_hash, bytes32 branch) 
         stateOpen(question_id)
     external {
-        require(realityToken.transferFrom(msg.sender, this, amount, branch));
+        require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch));
 
         questions[question_id].bounty = questions[question_id].bounty.add(amount);
         LogFundAnswerBounty(question_id, amount, questions[question_id].bounty, msg.sender, branch);

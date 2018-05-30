@@ -2,8 +2,9 @@ pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
 import './SafeMath32.sol';
-import './RealityToken.sol';
-import './DataContract.sol';
+import './../node_modules/realitytoken-contract/contracts/RealityToken.sol';
+import './../node_modules/realitytoken-contract/contracts/ArbitratorData.sol';
+import './../node_modules/realitytoken-contract/contracts/ArbitratorList.sol';
 
 
 contract RealityCheck {
@@ -86,7 +87,8 @@ contract RealityCheck {
 
     event LogNotifyOfArbitrationRequest(
         bytes32 indexed question_id,
-        address indexed user 
+        address indexed user,
+        bytes32 indexed branch 
     );
 
     event LogFinalize(
@@ -107,9 +109,8 @@ contract RealityCheck {
         uint32 opening_ts;
         uint32 timeout;
         uint32 finalize_ts;
-        bool is_pending_arbitration_from_arbitrator;
-        bool endOfChallengingPeriodForRealityToken;
-        bool is_pending_arbitration_from_realityToken;
+        // branch -> bool
+        mapping (bytes32 => bool) is_pending_arbitration;
         uint256 bounty;
         bytes32 best_answer;
         bytes32 history_hash;
@@ -145,8 +146,10 @@ contract RealityCheck {
     uint public arbitrator_question_fees; 
 
 
-    modifier onlyArbitrator(bytes32 question_id) {
-        require(msg.sender == questions[question_id].arbitrator);
+    modifier onlyArbitrator(bytes32 question_id, bytes32 branch) {
+        address arbitratorList = realityToken.getArbitratorList(branch);
+        address arbitrator = ArbitratorList(arbitratorList).arbitrators(questions[question_id].arbitrator);
+        require(msg.sender == arbitrator);
         _;
     }
 
@@ -159,10 +162,9 @@ contract RealityCheck {
         _;
     }
 
-
-    modifier stateOpen(bytes32 question_id) {
+    modifier stateOpen(bytes32 question_id, bytes32 branch) {
         require(questions[question_id].timeout > 0); // Check existence
-        require(!questions[question_id].is_pending_arbitration);
+        require(!questions[question_id].is_pending_arbitration[branch]);
         // TODO :uint32 finalize_ts = ;
         require(questions[question_id].finalize_ts == UNANSWERED || questions[question_id].finalize_ts > uint32(now));
         // TODO opening_ts =
@@ -170,13 +172,13 @@ contract RealityCheck {
         _;
     }
 
-    modifier statePendingArbitration(bytes32 question_id) {
-        require(questions[question_id].is_pending_arbitration);
+    modifier statePendingArbitration(bytes32 question_id, bytes32 branch) {
+        require(questions[question_id].is_pending_arbitration[branch]);
         _;
     }
 
-    modifier stateFinalized(bytes32 question_id) {
-        require(isFinalized(question_id));
+    modifier stateFinalized(bytes32 question_id, bytes32 branch) {
+        require(isFinalized(question_id, branch));
         _;
     }
 
@@ -224,7 +226,7 @@ contract RealityCheck {
     public returns (uint256) {
         uint256 id = nextTemplateID;
         templates[id] = block.number;
-        LogNewTemplate(id, msg.sender, content);
+        emit LogNewTemplate(id, msg.sender, content);
         nextTemplateID = id.add(1);
         return id;
     }
@@ -268,10 +270,10 @@ contract RealityCheck {
         require(templates[template_id] > 0); // Template must exist
 
         bytes32 content_hash = keccak256(template_id, opening_ts, question);
-        bytes32 question_id = keccak256(content_hash, timeout, msg.sender, nonce, branch, arbitrator);
+        bytes32 question_id = keccak256(content_hash, timeout, msg.sender, nonce, branch, arbitratorNr);
 
-        _askQuestion(question_id, content_hash, timeout, opening_ts, amount, branch, arbitrator);
-        LogNewQuestion(question_id, msg.sender, template_id, question, content_hash, timeout, opening_ts, nonce, now, amount, branch);
+        _askQuestion(question_id, content_hash, timeout, opening_ts, amount, branch, arbitratorNr);
+        emit LogNewQuestion(question_id, msg.sender, template_id, question, content_hash, timeout, opening_ts, nonce, now, amount, branch);
 
         return question_id;
     }
@@ -317,13 +319,13 @@ contract RealityCheck {
     /// @notice Add funds to the bounty for a question
     /// @dev Add bounty funds after the initial question creation. Can be done any time until the question is finalized.
     /// @param question_id The ID of the question you wish to fund
-    function fundAnswerBounty(bytes32 question_id, uint amount, bytes32 content_hash, bytes32 branch) 
-        stateOpen(question_id)
+    function fundAnswerBounty(bytes32 question_id, uint amount, bytes32 branch) 
+        stateOpen(question_id, branch)
     external {
         require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch));
 
         questions[question_id].bounty = questions[question_id].bounty.add(amount);
-        LogFundAnswerBounty(question_id, amount, questions[question_id].bounty, msg.sender, branch);
+        emit LogFundAnswerBounty(question_id, amount, questions[question_id].bounty, msg.sender, branch);
     }
 
     /// @notice Submit an answer for a question.
@@ -333,15 +335,15 @@ contract RealityCheck {
     /// @param answer The answer, encoded into bytes32
     /// @param max_previous If specified, reverts if a bond higher than this was submitted after you sent your transaction.
     function submitAnswer(bytes32 question_id, bytes32 answer, uint256 max_previous, uint amount) 
-        stateOpen(question_id)
+        stateOpen(question_id, questions[question_id].branch)
         bondMustDouble(question_id, amount)
-        previousBondMustNotBeatMaxPrevious(question_id, max_previous)
+        //previousBondMustNotBeatMaxPrevious(question_id, max_previous)
     external{
         require(realityToken.transferFrom(msg.sender, this, amount, questions[question_id].branch));
         _addAnswerToHistory(question_id, answer, msg.sender, amount, false);
         _updateCurrentAnswer(question_id, answer, questions[question_id].timeout);
     }
-
+/* not needed for first prototype: stack deepness issues
     /// @notice Submit the hash of an answer, laying your claim to that answer if you reveal it in a subsequent transaction.
     /// @dev Creates a hash, commitment_id, uniquely identifying this answer, to this question, with this bond.
     /// The commitment_id is stored in the answer history where the answer would normally go.
@@ -352,7 +354,7 @@ contract RealityCheck {
     /// @param _answerer If specified, the address to be given as the question answerer. Defaults to the sender.
     /// @dev Specifying the answerer is useful if you want to delegate the commit-and-reveal to a third-party.
     function submitAnswerCommitment(bytes32 question_id, bytes32 answer_hash, uint bond, uint256 max_previous, address _answerer) 
-        stateOpen(question_id)
+        stateOpen(question_id, questions[question_id].branch)
         bondMustDouble(question_id, bond)
         //previousBondMustNotBeatMaxPrevious(question_id, max_previous)
     external payable {
@@ -377,7 +379,7 @@ contract RealityCheck {
     /// @param nonce The nonce that, combined with the answer, recreates the answer_hash you gave in submitAnswerCommitment()
     /// @param bond The bond that you paid in your submitAnswerCommitment() transaction
     function submitAnswerReveal(bytes32 question_id, bytes32 answer, uint256 nonce, uint256 bond) 
-        stateOpen(question_id)
+        stateOpen(question_id, questions[question_id].branch)
     external {
 
         bytes32 answer_hash = keccak256(answer, nonce);
@@ -393,9 +395,9 @@ contract RealityCheck {
             _updateCurrentAnswer(question_id, answer, questions[question_id].timeout);
         }
 
-        LogAnswerReveal(question_id, msg.sender, answer_hash, answer, nonce, bond);
+        emit LogAnswerReveal(question_id, msg.sender, answer_hash, answer, nonce, bond);
 
-    }
+    } */
 
     function _addAnswerToHistory(bytes32 question_id, bytes32 answer_or_commitment_id, address answerer, uint256 bond, bool is_commitment) 
     internal 
@@ -405,7 +407,7 @@ contract RealityCheck {
         questions[question_id].bond = bond;
         questions[question_id].history_hash = new_history_hash;
 
-        LogNewAnswer(answer_or_commitment_id, question_id, new_history_hash, answerer, bond, now, is_commitment);
+        emit LogNewAnswer(answer_or_commitment_id, question_id, new_history_hash, answerer, bond, now, is_commitment);
     }
 
     function _updateCurrentAnswer(bytes32 question_id, bytes32 answer, uint32 timeout_secs)
@@ -420,50 +422,13 @@ contract RealityCheck {
     /// @dev The arbitrator contract is trusted to only call this if they've been paid, and tell us who paid them.
     /// @param question_id The ID of the question
     /// @param requester The account that requested arbitration
-    function notifyOfArbitrationRequestFromArbitrator(bytes32 question_id, address requester) 
-        onlyArbitrator(question_id)
-        stateOpen(question_id)
-    external {
-        questions[question_id].is_pending_arbitration = true;
-        LogNotifyOfArbitrationRequest(question_id, requester);
+    function notifyOfArbitrationRequest(bytes32 question_id, address requester, bytes32 branch) 
+       onlyArbitrator(question_id, branch)
+       stateOpen(question_id, branch)
+    public {
+        questions[question_id].is_pending_arbitration[branch] = true;
+        emit LogNotifyOfArbitrationRequest(question_id, requester, branch);
     }
-
-    /// @notice Submit the answer for a question, for use by the arbitrator.
-    /// @dev Doesn't require (or allow) a bond.
-    /// If the current final answer is correct, the account should be whoever submitted it.
-    /// If the current final answer is wrong, the account should be whoever paid for arbitration.
-    /// However, the answerer stipulations are not enforced by the contract.
-    /// @param question_id The ID of the question
-    /// @param answer The answer, encoded into bytes32
-    /// @param answerer The account credited with this answer for the purpose of bond claims
-    function submitAnswerByArbitrator(bytes32 question_id, bytes32 answer, address answerer) 
-        onlyArbitrator(question_id)
-        statePendingArbitration(question_id)
-        bondMustBeZero
-    external {
-
-        require(answerer != NULL_ADDRESS);
-        LogFinalize(question_id, answer);
-        questions[question_id].endOfChallengingPeriodForRealityToken = now + (5 days);
-        questions[question_id].is_pending_arbitration_from_arbitrator = false;
-        _addAnswerToHistory(question_id, answer, answerer, 0, false);
-        _updateCurrentAnswer(question_id, answer, 0);
-
-    }
-
-
-    /// @notice Notify the contract that the minimal threshold for the realityToken to make a decision was reached
-    /// @dev anyone can call this and request an arbitration from realityToken, if threshold of escalation is reached
-    /// @param question_id The ID of the question
-    function notifyOfArbitrationRequestRealityToken(bytes32 question_id) 
-        stateStillChallengableWithRealityTokens(question_id)
-    external {
-        require( realityToken.transferFrom(msg.sender, this, realityToken.getRealityArbitrationCosts(questions[question_id].branch), questions[question_id].branch));
-        questions[question_id].is_pending_arbitration_from_realityToken = true;
-        LogNotifyOfArbitrationRequest(question_id, msg.sender);
-    }
-
-    
 
     /// @notice Report whether the answer to the specified question is finalized
     /// @param question_id The ID of the question
@@ -471,42 +436,28 @@ contract RealityCheck {
     function isFinalized(bytes32 question_id, bytes32 branch) 
     constant public returns (bool) {
         uint32 finalize_ts = questions[question_id].finalize_ts;
-        
-        bool finalized = (questions[question_id].endOfChallengingPeriodForRealityToken <= now && !questions[question_id].is_pending_arbitration_from_arbitrator && (finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now)) );
-        if( finalized && !questions[question_id].is_pending_arbitration_from_realityToken)
-            return true;
-        else
-            return false;    
-    }
-
-    /// @notice Report whether the answer to the specified question is finalized
-    /// @param question_id The ID of the question
-    /// @return Return true if finalized
-    function isFinalizedOrUsingRealityArbitration(bytes32 question_id, bytes32 branch) 
-    constant public returns (bool) {
-        uint32 finalize_ts = questions[question_id].finalize_ts;
-        
-        bool finalized = (questions[question_id].endOfChallengingPeriodForRealityToken <= now && !questions[question_id].is_pending_arbitration_from_arbitrator && (finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now)) );
-        if( finalized   || questions[question_id].is_pending_arbitration_from_realityToken)
-            return true;
-        else
-            {
-            bool answerIsGivenByRealityToken;
-            while(!answerIsGivenByRealityToken){
-                address dataContract = realityToken.getDataContract(branch);
-                answerIsGivenByRealityToken = DataContract(dataContract).isAnswerSet(question_id);
-                if(!answerIsGivenByRealityToken){
-                    branch = realityToken.getParentBranch(branch);
-                    if( branch == realityToken.genesis_branch_hash())
-                        return false;
-                }  else{
-                    return true;
-                }
-
+        bool arbitrationRequested = false;
+        bytes32 tempHashBranch = branch;
+        while(tempHashBranch != questions[question_id].branch && !arbitrationRequested){
+            if(questions[question_id].is_pending_arbitration[tempHashBranch]){
+                arbitrationRequested = true;
             }
+            tempHashBranch = realityToken.getParentBranch(tempHashBranch);
+        }
+        if(questions[question_id].is_pending_arbitration[questions[question_id].branch])
+                arbitrationRequested = true; 
 
-            }   
+        bool finalized = (!arbitrationRequested && (finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now)) );
+        if( finalized )
+            return true;
+        address arbitratorList = realityToken.getArbitratorList(branch); 
+        address arbitrator = ArbitratorList(arbitratorList).arbitrators(questions[question_id].arbitrator);
+        if(ArbitratorData(arbitrator).isAnswerSetBefore(question_id, realityToken.getTimestampOfBranch(branch)))
+            return true;
+        
+        return false;    
     }
+
 
     /// @notice Return the final answer to the specified question, or revert if there isn't one
     /// @param question_id The ID of the question
@@ -514,21 +465,37 @@ contract RealityCheck {
     function getFinalAnswer( bytes32 branch, bytes32 question_id) 
     public constant returns (bytes32 best_answer) {
         uint32 finalize_ts = questions[question_id].finalize_ts;
-        bool finalizedNormally = (!questions[question_id].is_pending_arbitration_from_arbitrator && (finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now)) );
+        bool arbitrationRequested = false;
+        bytes32 tempHashBranch = branch;
+        while(tempHashBranch != questions[question_id].branch && !arbitrationRequested){
+            if(questions[question_id].is_pending_arbitration[tempHashBranch]){
+                arbitrationRequested = true;
+            }
+            tempHashBranch = realityToken.getParentBranch(tempHashBranch);
+        } 
+        if(questions[question_id].is_pending_arbitration[questions[question_id].branch])
+                arbitrationRequested = true; 
+        bool finalized = (!arbitrationRequested && (finalize_ts > UNANSWERED) && (finalize_ts <= uint32(now)) );
         if(finalized){
             best_answer = questions[question_id].best_answer;
         } else {
             bool answerIsGivenByRealityToken;
+
             while(!answerIsGivenByRealityToken){
-                address dataContract = realityToken.getDataContract(branch);
-                answerIsGivenByRealityToken = DataContract(dataContract).isAnswerSet(question_id);
+
+                address arbitratorList = realityToken.getArbitratorList(branch); 
+                address arbitrator = ArbitratorList(arbitratorList).arbitrators(questions[question_id].arbitrator);
+                if(ArbitratorData(arbitrator).isAnswerSetBefore(question_id, realityToken.getTimestampOfBranch(branch))){
+                    answerIsGivenByRealityToken = true;
+                    best_answer = ArbitratorData(arbitrator).getAnswerBefore(question_id, realityToken.getTimestampOfBranch(branch));
+                }
                 if(!answerIsGivenByRealityToken){
                     branch = realityToken.getParentBranch(branch);
-                    require( branch != realityToken.genesis_branch_hash());
+                    require( branch != realityToken.window_branches(0, 0));
                 }
 
             }
-            best_answer = DataContract(dataContract).getAnswer(question_id);
+        }
     }
 
     /// @notice Return the final answer to the specified question, provided it matches the specified criteria.
@@ -541,9 +508,9 @@ contract RealityCheck {
     /// @return The answer formatted as a bytes32
     function getFinalAnswerIfMatches(
         bytes32 question_id, 
-        bytes32 content_hash, address arbitrator, uint32 min_timeout, uint256 min_bond
+        bytes32 content_hash, uint arbitrator, uint32 min_timeout, uint256 min_bond, bytes32 branch
     ) 
-        stateFinalized(question_id)
+        stateFinalized(question_id, branch)
     external constant returns (bytes32) {
         require(content_hash == questions[question_id].content_hash);
         require(arbitrator == questions[question_id].arbitrator);
@@ -561,6 +528,8 @@ contract RealityCheck {
     /// Once we get to a null hash we'll know we're done and there are no more answers.
     /// Usually you would call the whole thing in a single transaction, but if not then the data is persisted to pick up later.
     /// @param question_id The ID of the question
+    /// @param branchForWithdraw is the branch on which the realityTokens should be withdrawn
+    /// @param branchFromPreviousWithdraw  if the withdraw process is splitted into several steps the branch from the previous step needs to be handed over
     /// @param history_hashes Second-last-to-first, the hash of each history entry. (Final one should be empty).
     /// @param addrs Last-to-first, the address of each answerer or commitment sender
     /// @param bonds Last-to-first, the bond supplied with each answer or commitment
@@ -575,7 +544,7 @@ contract RealityCheck {
         bytes32[] answers
     ) 
     public {
-        require(isFinalizedOrUsingRealityArbitration(question_id, branchForWithdraw));
+        require(isFinalized(question_id, branchForWithdraw));
         require(history_hashes.length > 0);
         //checks the eligibility of a branch for withdraw
         require(eligibleBranchForWithdraw(branchForWithdraw, branchFromPreviousWithdraw, question_id));
@@ -639,12 +608,10 @@ contract RealityCheck {
     function eligibleBranchForWithdraw(bytes32 branchForWithdraw, bytes32 branchFromPreviousWithdraw, bytes32 question_id)
     public view returns(bool)
     {
-        bytes32 branchFromQuestion = questions[question_id].branch;
-        bytes32 [] alreadyUsedBranches = questions[question_id].realityWithdrawBranches;
-        if(branchFromPreviousWithdraw!=bytes32(0)){ 
+        if(branchFromPreviousWithdraw != bytes32(0)){ 
             // check that tokens were not yet withdrawn in inbetween branches
-            for(uint i=0;i < alreadyUsedBranches.length;i++) {
-                if(realityToken.isBranchInBetweenBranches(alreadyUsedBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
+            for(uint i=0;i < questions[question_id].realityWithdrawBranches.length;i++) {
+                if(realityToken.isBranchInBetweenBranches(questions[question_id].realityWithdrawBranches[i], branchFromPreviousWithdraw, branchForWithdraw))
                     return false;   
             }
         }
@@ -670,13 +637,13 @@ contract RealityCheck {
     function _payPayee(bytes32 branchForWithdraw, bytes32 question_id,  uint256 value, address payee) 
     internal {
         require(realityToken.transfer(payee, value, branchForWithdraw));
-        LogClaim(question_id, payee, value, branchForWithdraw);
+        emit LogClaim(question_id, payee, value, branchForWithdraw);
     }
     function _verifyHistoryInputOrRevert(
         bytes32 history_hash, address addr, uint256 bond, bytes32 answer,
         bytes32 last_history_hash
     )
-    internal  returns (bool) {
+    internal pure returns (bool) {
         if (last_history_hash == keccak256(history_hash, answer, bond, addr, true) ) {
             return true;
         }

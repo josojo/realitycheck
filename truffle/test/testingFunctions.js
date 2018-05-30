@@ -33,13 +33,9 @@ Number.prototype.toEth = function toEth() {
 let genesis_branch = '0xfca5e1a248b8fee34db137da5e38b41f95d11feb5a8fa192a150d8d5d8de1c59'
 genesis_branch = new String(genesis_branch).valueOf()
 const contractNames = [
-  'DataContract',
   'RealityCheck',
   'RealityToken',
-  'Distribution',
-  'RealityMarket',
 ]
-// DutchExchange and TokenOWL are added after their respective Proxy contracts are deployed
 
 /**
  * getContracts - async loads contracts and instances
@@ -59,8 +55,9 @@ const getContracts = async () => {
 
   return deployedContracts
 }
-
+const initialFunding = 1e10;
 const arbitrationCost = 1e19
+const feeForRealityToken = 100
 
 /**
  * >setupTest()
@@ -73,34 +70,39 @@ const setupTest = async (
   {
     RealityToken: realityToken,
     RealityCheck: realityCheck,
-    DataContract: dataContract,
-    Distribution: distribution,
-    RealityMarket: realityMarket,
   },
   {
     amountRLT = 50.0.toWei(),
   }) => {
+
+
   //distribute funds
-  await Promise.all(accounts.map((acct) => {
-    distribution.withdrawReward(realityToken.address, genesis_branch, { from: acct})
-  }))
-  assert.equal((await realityToken.balanceOf(accounts[0],genesis_branch)).toNumber(),10e23)
-  console.log('tokendistribtuion done')
-  console.log("relaitymarket address",realityMarket.address)
-
-  // asking a first question
-  newDataContract = await artifacts.require('./DataContract').new({from: accounts[0]})
-
-  //await newDataContract.SupportDapp([realityCheck.address])
-  await newDataContract.setArbitrationCost(arbitrationCost)
-  await newDataContract.finalize()
+  let newFundDistribution = await artifacts.require('./Distribution').new()
+  await newFundDistribution.injectReward(accounts, [initialFunding, initialFunding, initialFunding, initialFunding, initialFunding, initialFunding, initialFunding, initialFunding, initialFunding, initialFunding]);
+  await newFundDistribution.finalize();
+ 
+  // make accounts[1] as arbitrator
+  const ArbitratorData = artifacts.require('./RealityCheckArbitrator'); 
+  let arbitratorData = await ArbitratorData.new(realityCheck.address, {from: accounts[1]})
+  
+  const ArbitratorList = artifacts.require('./ArbitratorList'); 
+  let arbitratorList = await ArbitratorList.new([arbitratorData.address]);
+  
+  // create new branch:
   await wait(86400)
-    console.log('data contract made')
 
-  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, newDataContract.address,1,0,0)
-  market = getParamFromTxEvent(transaction, 'market', 'BranchCreated')
-  console.log(market)
+  const transaction = await realityToken.createBranch(genesis_branch, genesis_branch, arbitratorList.address, newFundDistribution.address, 2e20)
   first_branch = getParamFromTxEvent(transaction, 'hash', 'BranchCreated')
+  console.log("first branch created with hash"+ first_branch)
+
+
+  // accounts can claim their rewards
+  await newFundDistribution.withdrawReward(realityToken.address, first_branch, {from: accounts[0]})
+  await newFundDistribution.withdrawReward(realityToken.address, first_branch, {from: accounts[1]})
+  await newFundDistribution.withdrawReward(realityToken.address, first_branch, {from: accounts[2]})
+  await newFundDistribution.withdrawReward(realityToken.address, first_branch, {from: accounts[3]})
+  await newFundDistribution.withdrawReward(realityToken.address, first_branch, {from: accounts[4]})
+
   return new String(first_branch).valueOf()
 }
 
@@ -112,4 +114,6 @@ module.exports = {
   bn,
   genesis_branch,
   arbitrationCost,
+  initialFunding,
+  feeForRealityToken,
 }

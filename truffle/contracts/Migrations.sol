@@ -1,5 +1,5 @@
 pragma solidity ^0.4.2;
-import './../node_modules/realitytoken-contract/contracts/Distribution.sol';
+import './../node_modules/@josojo/realitytoken-contracts/contracts/Distribution.sol';
 
 
 contract Migrations {

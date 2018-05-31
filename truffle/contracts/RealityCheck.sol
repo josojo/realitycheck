@@ -2,9 +2,9 @@ pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
 import './SafeMath32.sol';
-import './../node_modules/realitytoken-contract/contracts/RealityToken.sol';
-import './../node_modules/realitytoken-contract/contracts/ArbitratorData.sol';
-import './../node_modules/realitytoken-contract/contracts/ArbitratorList.sol';
+import './../node_modules/@josojo/realitytoken-contracts/contracts/RealityToken.sol';
+import './../node_modules/@josojo/realitytoken-contracts/contracts/ArbitratorData.sol';
+import './../node_modules/@josojo/realitytoken-contracts/contracts/ArbitratorList.sol';
 
 
 contract RealityCheck {
